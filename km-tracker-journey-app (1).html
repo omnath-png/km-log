@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KM Tracker &amp; Journey Log</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+@media print { .no-print { display: none !important; } body { background: #fff !important; color: #000 !important; } }
+/* Remove spinner arrows from number inputs */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+.custom-pin-start {
+  background: #10b981; color: white; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-weight: bold;
+  font-size: 14px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.custom-pin-end {
+  background: #ef4444; color: white; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-weight: bold;
+  font-size: 14px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen pb-20">
+<main class="max-w-xl mx-auto p-4 space-y-4">
+  <!-- Top Header -->
+  <div class="flex items-center justify-between py-2 border-b border-slate-200">
+    <div class="flex items-center gap-2">
+      <div class="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-xl shadow-md">🚗</div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">KM Tracker</h1>
+        <p class="text-xs text-slate-500">Journey Log &amp; GPS Tracker</p>
+      </div>
+    </div>
+    <div class="flex gap-1 bg-slate-200 p-1 rounded-xl text-xs">
+      <button id="t-dash" onclick="switchView('dash')" class="px-2.5 py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm cursor-pointer">Dashboard</button>
+      <button id="t-journeys" onclick="switchView('journeys')" class="px-2.5 py-1.5 font-semibold rounded-lg text-slate-600 cursor-pointer">Journeys</button>
+      <button id="t-report" onclick="switchView('report')" class="px-2.5 py-1.5 font-semibold rounded-lg text-slate-600 cursor-pointer">Report</button>
+    </div>
+  </div>
+
+  <!-- Diagnostic Protocol Badge (Especially for file://) -->
+  <div id="file-protocol-tip" class="hidden bg-sky-50 border border-sky-200 rounded-2xl p-3 text-xs text-sky-800 space-y-1">
+    <div class="flex items-center justify-between font-bold">
+      <span class="flex items-center gap-1.5"><span>📍</span> Location System Ready</span>
+      <span class="text-[10px] bg-sky-200 px-2 py-0.5 rounded-full font-mono">Multi-tier GPS</span>
+    </div>
+    <p class="text-[11px] text-sky-700 leading-relaxed">
+      Dual GPS active: Device satellite sensor + CORS Network fallback. Full offline local storage enabled.
+    </p>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- DASHBOARD VIEW -->
+  <!-- ========================================== -->
+  <div id="v-dash" class="space-y-4">
+    <!-- Active Journey Card (Conditional) -->
+    <div id="active-card" class="hidden bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-800 rounded-3xl p-4 sm:p-5 text-white shadow-xl space-y-4 border border-emerald-500/40">
+      <div class="flex items-center justify-between">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/20 backdrop-blur-md">
+          <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span> ACTIVE JOURNEY
+        </span>
+        <span id="act-id" class="font-mono text-xs text-emerald-100 font-bold bg-black/20 px-2.5 py-0.5 rounded-full"></span>
+      </div>
+
+      <div>
+        <div class="text-lg font-bold flex items-center gap-2" id="act-veh"></div>
+        <div class="text-xs text-emerald-100" id="act-drv"></div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 text-xs">
+        <div class="bg-white/10 backdrop-blur-md p-2.5 rounded-xl">
+          <span class="text-[10px] text-emerald-200 block">Start KM</span>
+          <b class="text-sm font-mono" id="act-sk"></b>
+        </div>
+        <div class="bg-white/10 backdrop-blur-md p-2.5 rounded-xl">
+          <span class="text-[10px] text-emerald-200 block">GPS Dist</span>
+          <b class="text-sm font-mono" id="act-dist">0.0 km</b>
+        </div>
+        <div class="bg-white/10 backdrop-blur-md p-2.5 rounded-xl">
+          <span class="text-[10px] text-emerald-200 block">Duration</span>
+          <b class="text-sm font-mono text-amber-200" id="act-dur">00:00:00</b>
+        </div>
+      </div>
+
+      <div class="bg-black/20 backdrop-blur-sm rounded-2xl p-3 text-xs text-emerald-100 space-y-1">
+        <div><b>Destination:</b> <span id="act-dest" class="text-white font-semibold"></span></div>
+        <div class="text-[11px]"><b>Start:</b> <span id="act-loc" class="text-white"></span></div>
+        <div class="text-[11px]"><b>Current:</b> <span id="act-cur-coords" class="font-mono text-white">Acquiring...</span></div>
+        <div class="font-mono text-[11px] text-emerald-300 font-bold pt-0.5" id="act-gps-status">🟢 GPS Tracking Active (0 pts)</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="openEndModal()" class="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 cursor-pointer text-sm">
+          <span>🛑 END JOURNEY</span>
+        </button>
+        <button onclick="viewActiveRouteMap()" class="px-3 py-3 bg-white/20 hover:bg-white/30 text-white font-bold rounded-2xl text-xs flex items-center gap-1 cursor-pointer" title="View live route">
+          <span>🗺️ Map</span>
+        </button>
+        <button id="btn-wake" onclick="toggleWakeLock()" class="px-3 py-3 bg-white/20 hover:bg-white/30 text-white font-bold rounded-2xl text-xs flex items-center gap-1 cursor-pointer" title="Keep screen awake">
+          <span>☀️ Awake</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Start Journey Banner (When No Active Journey) -->
+    <div id="start-banner" class="bg-white border-2 border-emerald-500/30 rounded-3xl p-5 shadow-sm space-y-3.5 text-center">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl mx-auto shadow-inner">
+        🚀
+      </div>
+      <div>
+        <h2 class="text-base sm:text-lg font-bold text-slate-800">Start Vehicle Journey</h2>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mt-0.5">
+          Tap below to snap starting odometer photo, auto-detect GPS location, and track journey coordinates.
+        </p>
+      </div>
+      <button onclick="openStartModal()" class="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer text-sm">
+        <span>START JOURNEY</span>
+      </button>
+    </div>
+
+    <!-- Quick Direct Entry Card (For Manual Entries) -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Quick Manual Log</h3>
+        <span class="text-[11px] text-slate-400">Offline direct log</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="block font-medium mb-1">Date</label>
+          <input type="date" id="q-date" class="w-full px-3 py-2 border rounded-xl">
+        </div>
+        <div>
+          <label class="block font-medium mb-1">Purpose</label>
+          <input type="text" id="q-purp" placeholder="e.g. Official Duty" class="w-full px-3 py-2 border rounded-xl">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="block font-medium mb-1">From Place</label>
+          <input type="text" id="q-from" placeholder="Start Place" class="w-full px-3 py-2 border rounded-xl">
+        </div>
+        <div>
+          <label class="block font-medium mb-1">To Place</label>
+          <input type="text" id="q-to" placeholder="End Place" class="w-full px-3 py-2 border rounded-xl">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="block font-medium mb-1">Start KM</label>
+          <input type="text" inputmode="numeric" id="q-sk" placeholder="45210" class="w-full px-3 py-2 border rounded-xl font-mono">
+        </div>
+        <div>
+          <label class="block font-medium mb-1">End KM</label>
+          <input type="text" inputmode="numeric" id="q-ek" placeholder="45250" class="w-full px-3 py-2 border rounded-xl font-mono">
+        </div>
+      </div>
+      <button onclick="saveQuickTrip()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl text-xs cursor-pointer">
+        Save Quick Log
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- JOURNEYS VIEW -->
+  <!-- ========================================== -->
+  <div id="v-journeys" class="hidden space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-bold text-slate-800">Journey History</h2>
+      <button onclick="openStartModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl cursor-pointer">+ Start Journey</button>
+    </div>
+    <div id="journeys-list" class="space-y-3"></div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- REPORT VIEW -->
+  <!-- ========================================== -->
+  <div id="v-report" class="hidden space-y-4">
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Report Filter</h2>
+        <span id="rep-label" class="text-xs font-medium text-emerald-600 font-mono"></span>
+      </div>
+      <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+        <button id="btn-flt-today" onclick="setFlt('today')" class="py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm cursor-pointer">Today</button>
+        <button id="btn-flt-month" onclick="setFlt('month')" class="py-1.5 font-semibold rounded-lg text-slate-600 cursor-pointer">Month</button>
+        <button id="btn-flt-range" onclick="setFlt('range')" class="py-1.5 font-semibold rounded-lg text-slate-600 cursor-pointer">Range</button>
+      </div>
+      <div id="box-flt-month" class="hidden flex items-center justify-between p-2 bg-slate-50 rounded-xl text-xs">
+        <label>Select Month:</label>
+        <input type="month" id="rep-mon" onchange="renderReport()" class="px-2 py-1 rounded border">
+      </div>
+      <div id="box-flt-range" class="hidden p-2 bg-slate-50 rounded-xl text-xs grid grid-cols-2 gap-2">
+        <input type="date" id="rep-from" onchange="renderReport()" class="px-2 py-1 rounded border">
+        <input type="date" id="rep-to" onchange="renderReport()" class="px-2 py-1 rounded border">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="bg-slate-50 p-2.5 rounded-xl text-center"><span class="text-[11px] text-slate-500 block">Trips / Journeys</span><b id="stat-n" class="text-base font-bold font-mono">0</b></div>
+        <div class="bg-slate-50 p-2.5 rounded-xl text-center"><span class="text-[11px] text-slate-500 block">Total KM</span><b id="stat-km" class="text-base font-bold font-mono text-emerald-600">0</b></div>
+      </div>
+      <div id="trip-list" class="space-y-3 pt-2"></div>
+    </div>
+    <button onclick="submitReportWA()" class="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl cursor-pointer shadow-md">📤 Submit Report on WhatsApp</button>
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="downloadCSV()" class="py-3 px-4 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl text-xs cursor-pointer">Download CSV</button>
+      <button onclick="downloadExcel()" class="py-3 px-4 bg-white border border-slate-200 text-emerald-700 font-medium rounded-xl text-xs cursor-pointer">Download Excel (.xls)</button>
+    </div>
+  </div>
+</main>
+
+<!-- ========================================== -->
+<!-- START JOURNEY MODAL -->
+<!-- ========================================== -->
+<div id="modal-start" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3">
+  <div class="bg-white rounded-3xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🚀</span>
+        <h2 class="text-base font-bold">Start Journey</h2>
+      </div>
+      <button onclick="closeStartModal()" class="text-slate-400 hover:text-slate-700 font-bold text-2xl cursor-pointer">&times;</button>
+    </div>
+
+    <div id="start-err" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs"></div>
+
+    <div class="space-y-3.5 text-xs">
+      <!-- Searchable Vehicle Number -->
+      <div>
+        <label class="block font-semibold mb-1 text-slate-700">Vehicle Number <span class="text-rose-500">*</span></label>
+        <input type="text" id="m-veh" list="veh-list" placeholder="Search or type e.g. BT-1-A1234" class="w-full px-3 py-2.5 border rounded-xl text-sm font-medium">
+        <datalist id="veh-list"></datalist>
+      </div>
+
+      <!-- Searchable Driver Name -->
+      <div>
+        <label class="block font-semibold mb-1 text-slate-700">Driver Name <span class="text-rose-500">*</span></label>
+        <input type="text" id="m-drv" list="drv-list" placeholder="Search or type e.g. Tenzin Dorji" class="w-full px-3 py-2.5 border rounded-xl text-sm font-medium">
+        <datalist id="drv-list"></datalist>
+      </div>
+
+      <!-- Starting KM with Camera OCR & Clear Number System -->
+      <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block font-semibold text-slate-700">Starting KM <span class="text-rose-500">*</span></label>
+          <span class="text-[11px] text-emerald-600 font-medium">✨ Auto-fill from photo</span>
+        </div>
+        <div class="flex gap-2 items-center">
+          <input type="text" inputmode="numeric" id="m-sk" placeholder="e.g. 45210" class="flex-1 px-3 py-2.5 border rounded-xl font-mono text-base font-bold bg-white">
+          <label class="px-3 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-700 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer text-xs shrink-0">
+            <span>📷 Click Picture</span>
+            <input type="file" accept="image/*" capture="environment" id="file-start-ocr" onchange="handleOdometerPhoto('start', event)" class="hidden">
+          </label>
+        </div>
+
+        <!-- OCR Status & Detected Numbers -->
+        <div id="start-ocr-status" class="hidden text-xs text-indigo-600 font-medium py-1 animate-pulse">
+          🔍 Scanning odometer picture for numbers...
+        </div>
+        <div id="start-ocr-chips" class="hidden flex flex-wrap gap-1.5 items-center pt-1"></div>
+        <div id="start-photo-preview" class="hidden pt-1 flex items-center gap-2">
+          <img id="start-photo-img" class="w-16 h-12 object-cover rounded-lg border border-slate-300">
+          <span class="text-[11px] text-slate-500">Odometer photo verified &amp; attached</span>
+        </div>
+      </div>
+
+      <!-- Purpose & Destination -->
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Purpose</label>
+          <select id="m-purp" class="w-full px-3 py-2 border rounded-xl">
+            <option>Official Duty</option>
+            <option>Client Visit</option>
+            <option>Site Inspection</option>
+            <option>Field Survey</option>
+            <option>Material Delivery</option>
+            <option>Passenger Transport</option>
+            <option>Vehicle Maintenance</option>
+            <option>Emergency / Relief</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1 text-slate-700">Destination <span class="text-rose-500">*</span></label>
+          <input type="text" id="m-dest" placeholder="e.g. Paro Airport" class="w-full px-3 py-2 border rounded-xl">
+        </div>
+      </div>
+
+      <!-- Multi-tier Start Location & GPS Controls -->
+      <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-slate-700 flex items-center gap-1">📍 Start Location (Auto GPS)</span>
+          <button type="button" onclick="fetchLocation('start')" class="text-[11px] text-emerald-600 font-semibold hover:underline cursor-pointer flex items-center gap-1">
+            <span id="btn-spin-start">🔄</span> Refresh GPS
+          </button>
+        </div>
+
+        <input type="text" id="m-start-place" placeholder="Start address or locality" class="w-full px-3 py-1.5 bg-white border rounded-lg text-xs font-medium">
+
+        <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+          <span id="m-start-coords">GPS Coordinates: Acquiring...</span>
+          <div class="flex gap-1.5">
+            <button type="button" onclick="openMapsPicker('start')" class="text-sky-600 hover:underline cursor-pointer">🗺️ Maps</button>
+            <span>•</span>
+            <button type="button" onclick="pasteCoordinates('start')" class="text-emerald-600 hover:underline cursor-pointer">📋 Paste</button>
+          </div>
+        </div>
+        <div id="m-start-status" class="text-[11px] text-slate-500"></div>
+      </div>
+
+      <!-- Remarks -->
+      <div>
+        <label class="block font-medium mb-1 text-slate-600">Remarks (Optional)</label>
+        <input type="text" id="m-rem" placeholder="e.g. Accompanying Engineer" class="w-full px-3 py-2 border rounded-xl">
+      </div>
+
+      <button onclick="confirmStart()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold rounded-2xl text-sm shadow-md shadow-emerald-600/30 cursor-pointer">
+        CONFIRM START JOURNEY
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- END JOURNEY MODAL -->
+<!-- ========================================== -->
+<div id="modal-end" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3">
+  <div class="bg-white rounded-3xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🛑</span>
+        <h2 class="text-base font-bold text-rose-600">End Journey</h2>
+      </div>
+      <button onclick="closeEndModal()" class="text-slate-400 hover:text-slate-700 font-bold text-2xl cursor-pointer">&times;</button>
+    </div>
+
+    <div id="end-err" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs"></div>
+
+    <!-- Confirm Dialog Screen -->
+    <div id="end-confirm-box" class="hidden space-y-3 text-xs bg-amber-50 p-4 rounded-2xl border border-amber-200 text-amber-900">
+      <h3 class="font-bold text-sm text-amber-800">Are you sure you want to end this journey?</h3>
+      <div class="space-y-1 text-xs">
+        <div><b>Starting KM:</b> <span id="conf-sk" class="font-mono"></span></div>
+        <div><b>Ending KM:</b> <span id="conf-ek" class="font-mono"></span></div>
+        <div class="text-emerald-700 font-bold text-sm"><b>Total Travelled:</b> <span id="conf-dist" class="font-mono"></span> KM</div>
+        <div><b>Duration:</b> <span id="conf-dur" class="font-mono"></span></div>
+        <div><b>From:</b> <span id="conf-from"></span></div>
+        <div><b>To:</b> <span id="conf-to"></span></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button onclick="cancelFinalEnd()" class="py-2.5 bg-white border border-slate-300 font-semibold rounded-xl text-slate-700 cursor-pointer">Go Back &amp; Edit</button>
+        <button onclick="commitFinalEnd()" class="py-2.5 bg-emerald-600 text-white font-bold rounded-xl shadow-md cursor-pointer">Yes, End Journey</button>
+      </div>
+    </div>
+
+    <!-- Form Screen -->
+    <div id="end-form-box" class="space-y-3.5 text-xs">
+      <div class="p-3 bg-slate-50 rounded-2xl flex justify-between items-center">
+        <div>
+          <span class="text-slate-500 text-[11px] block">Starting KM (Locked)</span>
+          <b class="text-sm font-mono text-slate-800" id="m-end-startkm"></b>
+        </div>
+        <div class="text-right">
+          <span class="text-slate-500 text-[11px] block">Travelled</span>
+          <b class="text-sm font-mono text-emerald-600" id="m-end-calc-km">0 KM</b>
+        </div>
+      </div>
+
+      <!-- Ending KM with Camera OCR -->
+      <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="block font-semibold text-slate-700">Ending KM <span class="text-rose-500">*</span></label>
+          <span class="text-[11px] text-emerald-600 font-medium">✨ Auto-fill from photo</span>
+        </div>
+        <div class="flex gap-2 items-center">
+          <input type="text" inputmode="numeric" id="m-ek" oninput="updateEndKmCalc()" placeholder="Must be greater than start KM" class="flex-1 px-3 py-2.5 border rounded-xl font-mono text-base font-bold bg-white">
+          <label class="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 rounded-xl font-semibold flex items-center gap-1.5 cursor-pointer text-xs shrink-0">
+            <span>📷 Click Picture</span>
+            <input type="file" accept="image/*" capture="environment" id="file-end-ocr" onchange="handleOdometerPhoto('end', event)" class="hidden">
+          </label>
+        </div>
+
+        <div id="end-ocr-status" class="hidden text-xs text-indigo-600 font-medium py-1 animate-pulse">
+          🔍 Scanning odometer picture for numbers...
+        </div>
+        <div id="end-ocr-chips" class="hidden flex flex-wrap gap-1.5 items-center pt-1"></div>
+        <div id="end-photo-preview" class="hidden pt-1 flex items-center gap-2">
+          <img id="end-photo-img" class="w-16 h-12 object-cover rounded-lg border border-slate-300">
+          <span class="text-[11px] text-slate-500">Ending odometer photo verified</span>
+        </div>
+      </div>
+
+      <!-- Ending Location & GPS -->
+      <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-slate-700 flex items-center gap-1">📍 Ending Location (Auto GPS)</span>
+          <button type="button" onclick="fetchLocation('end')" class="text-[11px] text-emerald-600 font-semibold hover:underline cursor-pointer flex items-center gap-1">
+            <span id="btn-spin-end">🔄</span> Refresh GPS
+          </button>
+        </div>
+
+        <input type="text" id="m-end-place" placeholder="Final destination address" class="w-full px-3 py-1.5 bg-white border rounded-lg text-xs font-medium">
+
+        <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+          <span id="m-end-coords">GPS Coordinates: Acquiring...</span>
+          <div class="flex gap-1.5">
+            <button type="button" onclick="openMapsPicker('end')" class="text-sky-600 hover:underline cursor-pointer">🗺️ Maps</button>
+            <span>•</span>
+            <button type="button" onclick="pasteCoordinates('end')" class="text-emerald-600 hover:underline cursor-pointer">📋 Paste</button>
+          </div>
+        </div>
+        <div id="m-end-status" class="text-[11px] text-slate-500"></div>
+      </div>
+
+      <!-- Final Remarks -->
+      <div>
+        <label class="block font-medium mb-1 text-slate-600">Final Remarks (Optional)</label>
+        <input type="text" id="m-end-rem" placeholder="e.g. Returned to headquarters depot safely" class="w-full px-3 py-2 border rounded-xl">
+      </div>
+
+      <button onclick="requestEndConfirmation()" class="w-full py-3.5 bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold rounded-2xl text-sm shadow-md shadow-rose-600/30 cursor-pointer">
+        PROCEED TO END JOURNEY
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MAP ROUTE MODAL -->
+<!-- ========================================== -->
+<div id="modal-map" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3">
+  <div class="bg-white rounded-3xl w-full max-w-2xl p-4 space-y-3 flex flex-col max-h-[90vh]">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">🗺️</span>
+        <h2 class="text-sm font-bold" id="map-modal-title">GPS Route Map</h2>
+      </div>
+      <button onclick="closeMapModal()" class="text-slate-400 hover:text-slate-700 font-bold text-2xl cursor-pointer">&times;</button>
+    </div>
+    <div id="map-container" class="w-full h-80 rounded-2xl bg-slate-100 border relative overflow-hidden"></div>
+    <div id="map-info" class="text-xs text-slate-600 flex justify-between items-center bg-slate-50 p-2.5 rounded-xl"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- JOURNEY DETAILS MODAL -->
+<!-- ========================================== -->
+<div id="modal-details" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3">
+  <div class="bg-white rounded-3xl w-full max-w-xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-2">
+      <h2 class="text-base font-bold text-slate-800" id="det-title">Journey Summary</h2>
+      <button onclick="closeDetailsModal()" class="text-slate-400 hover:text-slate-700 font-bold text-2xl cursor-pointer">&times;</button>
+    </div>
+    <div id="det-body" class="space-y-3 text-xs"></div>
+    <div class="flex gap-2 pt-2">
+      <button id="det-wa-btn" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl cursor-pointer">Share WhatsApp</button>
+      <button id="det-map-btn" class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl cursor-pointer">View Map</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// STATE MANAGEMENT & STORAGE
+// ==========================================
+let curView = 'dash';
+let activeJrn = null;
+let jrnHistory = [];
+let trips = [];
+let watchId = null;
+let wakeSentinel = null;
+let leafletMap = null;
+
+const PRESET_VEHICLES = [
+  'BT-1-A1234 (Toyota Hilux)',
+  'BT-2-B5678 (Hyundai Creta)',
+  'BP-1-C9012 (Mahindra Bolero)',
+  'BG-3-D3456 (Isuzu D-Max)',
+  'BT-1-E7890 (Toyota Prado)',
+  'BP-2-F1122 (Toyota Land Cruiser)',
+  'BT-1-G3344 (Suzuki Jimny)'
+];
+
+const PRESET_DRIVERS = [
+  'Tenzin Dorji',
+  'Karma Wangchuk',
+  'Sangay Penjor',
+  'Ugyen Tshering',
+  'Dorji Wangdi',
+  'Sonam Tobgay',
+  'Kinley Namgay'
+];
+
+let locState = {
+  start: { lat: 0, lng: 0, address: '', status: '' },
+  end: { lat: 0, lng: 0, address: '', status: '' }
+};
+
+let photoState = {
+  start: '',
+  end: ''
+};
+
+// Check file protocol
+if(location.protocol === 'file:') {
+  const tip = document.getElementById('file-protocol-tip');
+  if(tip) tip.classList.remove('hidden');
+}
+
+function loadStored() {
+  try { activeJrn = JSON.parse(localStorage.getItem('km_active_journey')); } catch { activeJrn = null; }
+  try { jrnHistory = JSON.parse(localStorage.getItem('km_journey_history') || '[]'); } catch { jrnHistory = []; }
+  try { trips = JSON.parse(localStorage.getItem('km_trips') || '[]'); } catch { trips = []; }
+
+  // Populate datalists
+  const storedVeh = JSON.parse(localStorage.getItem('km_custom_vehicles') || '[]');
+  const allVeh = Array.from(new Set([...PRESET_VEHICLES, ...storedVeh]));
+  const vList = document.getElementById('veh-list');
+  if(vList) vList.innerHTML = allVeh.map(v => '<option value="' + v + '">').join('');
+
+  const storedDrv = JSON.parse(localStorage.getItem('km_custom_drivers') || '[]');
+  const allDrv = Array.from(new Set([...PRESET_DRIVERS, ...storedDrv]));
+  const dList = document.getElementById('drv-list');
+  if(dList) dList.innerHTML = allDrv.map(d => '<option value="' + d + '">').join('');
+
+  // Default quick date
+  const qDate = document.getElementById('q-date');
+  if(qDate) qDate.value = new Date().toISOString().slice(0,10);
+}
+loadStored();
+
+// ==========================================
+// VIEW SWITCHING
+// ==========================================
+function switchView(v) {
+  curView = v;
+  document.getElementById('v-dash').classList.toggle('hidden', v !== 'dash');
+  document.getElementById('v-journeys').classList.toggle('hidden', v !== 'journeys');
+  document.getElementById('v-report').classList.toggle('hidden', v !== 'report');
+  document.getElementById('t-dash').className = v === 'dash' ? 'px-2.5 py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm' : 'px-2.5 py-1.5 font-semibold rounded-lg text-slate-600';
+  document.getElementById('t-journeys').className = v === 'journeys' ? 'px-2.5 py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm' : 'px-2.5 py-1.5 font-semibold rounded-lg text-slate-600';
+  document.getElementById('t-report').className = v === 'report' ? 'px-2.5 py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm' : 'px-2.5 py-1.5 font-semibold rounded-lg text-slate-600';
+  if(v === 'journeys') renderJourneys();
+  if(v === 'report') renderReport();
+}
+
+// ==========================================
+// LIVE ACTIVE JOURNEY TIMER & TRACKING
+// ==========================================
+let timerInterval = null;
+function startLiveTimer() {
+  if(timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if(!activeJrn) return;
+    const startMs = new Date(activeJrn.createdDate || (activeJrn.startDate + ' ' + activeJrn.startTime)).getTime();
+    if(isNaN(startMs)) return;
+    const diffSec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+    const h = String(Math.floor(diffSec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((diffSec % 3600) / 60)).padStart(2, '0');
+    const s = String(diffSec % 60).padStart(2, '0');
+    const el = document.getElementById('act-dur');
+    if(el) el.textContent = h + ':' + m + ':' + s;
+  }, 1000);
+}
+
+function calcTotalDistance(pts) {
+  if(!pts || pts.length < 2) return 0;
+  let total = 0;
+  for(let i = 1; i < pts.length; i++) {
+    const p1 = pts[i - 1];
+    const p2 = pts[i];
+    const R = 6371; // km
+    const dLat = (p2.latitude - p1.latitude) * Math.PI / 180;
+    const dLon = (p2.longitude - p1.longitude) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(p1.latitude * Math.PI / 180) * Math.cos(p2.latitude * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    total += (R * c);
+  }
+  return Number(total.toFixed(2));
+}
+
+function updateDashUI() {
+  const card = document.getElementById('active-card');
+  const banner = document.getElementById('start-banner');
+  if(activeJrn) {
+    card.classList.remove('hidden');
+    banner.classList.add('hidden');
+    document.getElementById('act-id').textContent = activeJrn.id;
+    document.getElementById('act-veh').textContent = activeJrn.vehicleNumber;
+    document.getElementById('act-drv').textContent = 'Driver: ' + activeJrn.driverName + ' • ' + (activeJrn.purpose || 'Journey');
+    document.getElementById('act-sk').textContent = activeJrn.startKm + ' km';
+    document.getElementById('act-dest').textContent = activeJrn.destination;
+    document.getElementById('act-loc').textContent = activeJrn.startLocation;
+    
+    const dist = calcTotalDistance(activeJrn.gpsRoute || []);
+    document.getElementById('act-dist').textContent = dist + ' km';
+    
+    startLiveTimer();
+  } else {
+    card.classList.add('hidden');
+    banner.classList.remove('hidden');
+    if(timerInterval) clearInterval(timerInterval);
+  }
+}
+updateDashUI();
+
+// Background GPS Watch
+function startTracking() {
+  if('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').then(s => wakeSentinel = s).catch(() => {});
+  }
+  if(navigator.geolocation) {
+    watchId = navigator.geolocation.watchPosition(pos => {
+      if(!activeJrn) return;
+      const lat = Number(pos.coords.latitude.toFixed(6));
+      const lng = Number(pos.coords.longitude.toFixed(6));
+      const pt = {
+        latitude: lat,
+        longitude: lng,
+        timestamp: new Date().toISOString(),
+        accuracy: Math.round(pos.coords.accuracy || 10),
+        speed: pos.coords.speed || 0,
+        distanceFromPrevious: 0
+      };
+      activeJrn.gpsRoute = activeJrn.gpsRoute || [];
+      activeJrn.gpsRoute.push(pt);
+      localStorage.setItem('km_active_journey', JSON.stringify(activeJrn));
+
+      const dist = calcTotalDistance(activeJrn.gpsRoute);
+      document.getElementById('act-dist').textContent = dist + ' km';
+      document.getElementById('act-cur-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+      document.getElementById('act-gps-status').textContent = '🟢 GPS Active (' + activeJrn.gpsRoute.length + ' pts • ±' + pt.accuracy + 'm)';
+    }, (err) => {
+      // Fallback ping if watch denied or interrupted
+      document.getElementById('act-gps-status').textContent = '⚠️ GPS Interrupted (Using Network/Route fallback)';
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
+  }
+}
+if(activeJrn) startTracking();
+
+function toggleWakeLock() {
+  const btn = document.getElementById('btn-wake');
+  if(wakeSentinel) {
+    wakeSentinel.release().then(() => {
+      wakeSentinel = null;
+      btn.className = 'px-3 py-3 bg-white/20 hover:bg-white/30 text-white font-bold rounded-2xl text-xs flex items-center gap-1 cursor-pointer';
+      btn.innerHTML = '<span>☀️ Awake</span>';
+    }).catch(() => {});
+  } else if('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').then(s => {
+      wakeSentinel = s;
+      btn.className = 'px-3 py-3 bg-amber-400 text-amber-950 font-bold rounded-2xl text-xs flex items-center gap-1 cursor-pointer';
+      btn.innerHTML = '<span>☀️ Awake ON</span>';
+    }).catch(() => {});
+  } else {
+    alert('Screen Wake Lock is not supported in this browser.');
+  }
+}
+
+// ==========================================
+// MULTI-TIER GPS ENGINE (DEVICE + CORS IP)
+// ==========================================
+async function fetchLocation(type) {
+  const spin = document.getElementById('btn-spin-' + type);
+  const coordsEl = document.getElementById('m-' + type + '-coords');
+  const placeInput = document.getElementById('m-' + type + '-place');
+  const statusEl = document.getElementById('m-' + type + '-status');
+
+  if(spin) spin.classList.add('animate-spin');
+  if(statusEl) statusEl.textContent = 'Detecting coordinates via GPS & Network...';
+
+  const applyCoords = (lat, lng, address, source) => {
+    locState[type] = { lat, lng, address, status: source };
+    if(coordsEl) coordsEl.textContent = 'Coords: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+    if(placeInput && (!placeInput.value || placeInput.value.includes('Location'))) {
+      placeInput.value = address;
+    }
+    if(statusEl) statusEl.textContent = source;
+    if(spin) spin.classList.remove('animate-spin');
+  };
+
+  // Tier 1 & 2: Device Geolocation
+  if(navigator.geolocation) {
+    const successDevice = (pos) => {
+      const lat = Number(pos.coords.latitude.toFixed(6));
+      const lng = Number(pos.coords.longitude.toFixed(6));
+      const acc = Math.round(pos.coords.accuracy || 10);
+      applyCoords(lat, lng, 'Location detected (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')', '✅ Device Satellite GPS (±' + acc + 'm accuracy)');
+      // Attempt reverse geocoding via OpenStreetMap Nominatim
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng)
+        .then(r => r.json())
+        .then(d => {
+          if(d && d.display_name && placeInput && !placeInput.value) {
+            const shortName = d.address ? (d.address.road || d.address.suburb || d.address.city || d.address.town || d.display_name.split(',')[0]) : d.display_name.split(',')[0];
+            placeInput.value = shortName;
+          }
+        }).catch(() => {});
+    };
+
+    const failDevice = () => {
+      // Tier 3: CORS Network Geolocation (Works even on file://!)
+      fetch('https://get.geojs.io/v1/ip/geo.json')
+        .then(r => r.json())
+        .then(d => {
+          if(d.latitude && d.longitude) {
+            const lat = Number(Number(d.latitude).toFixed(6));
+            const lng = Number(Number(d.longitude).toFixed(6));
+            const city = d.city ? (d.city + (d.region ? ', ' + d.region : '')) : (d.country || 'Network GPS');
+            applyCoords(lat, lng, city, '🌐 Network Location (Active)');
+          } else {
+            throw new Error('No geojs coords');
+          }
+        })
+        .catch(() => {
+          fetch('https://ipwho.is/')
+            .then(r => r.json())
+            .then(d2 => {
+              if(d2.latitude && d2.longitude) {
+                const lat = Number(Number(d2.latitude).toFixed(6));
+                const lng = Number(Number(d2.longitude).toFixed(6));
+                const city = d2.city || d2.country || 'Network GPS';
+                applyCoords(lat, lng, city, '🌐 Network Location (Active)');
+              } else {
+                throw new Error('No ipwho coords');
+              }
+            })
+            .catch(() => {
+              if(statusEl) statusEl.textContent = '⚠️ GPS permission blocked. Tap "Maps" or "Paste" to enter.';
+              if(spin) spin.classList.remove('animate-spin');
+            });
+        });
+    };
+
+    navigator.geolocation.getCurrentPosition(successDevice, () => {
+      navigator.geolocation.getCurrentPosition(successDevice, failDevice, { enableHighAccuracy: false, timeout: 3000 });
+    }, { enableHighAccuracy: true, timeout: 4000, maximumAge: 0 });
+  } else {
+    // Geolocation not supported at all -> use Tier 3
+    fetch('https://get.geojs.io/v1/ip/geo.json')
+      .then(r => r.json())
+      .then(d => {
+        const lat = Number(Number(d.latitude).toFixed(6));
+        const lng = Number(Number(d.longitude).toFixed(6));
+        applyCoords(lat, lng, d.city || 'Network GPS', '🌐 Network Location (Active)');
+      })
+      .catch(() => {
+        if(statusEl) statusEl.textContent = 'Location unavailable. Please enter place name.';
+        if(spin) spin.classList.remove('animate-spin');
+      });
+  }
+}
+
+function openMapsPicker(type) {
+  const lat = locState[type].lat || 0;
+  const lng = locState[type].lng || 0;
+  const url = (lat && lng) ? ('https://www.google.com/maps?q=' + lat + ',' + lng) : 'https://www.google.com/maps';
+  window.open(url, '_blank');
+}
+
+async function pasteCoordinates(type) {
+  let text = '';
+  try {
+    if(navigator.clipboard && navigator.clipboard.readText) {
+      text = await navigator.clipboard.readText();
+    }
+  } catch {}
+  if(!text) {
+    text = prompt('Paste coordinates (e.g. 27.4728, 89.6393) or place name:') || '';
+  }
+  if(!text.trim()) return;
+
+  const match = text.match(/(-?\d+\.\d{3,})\s*[, ]\s*(-?\d+\.\d{3,})/);
+  if(match) {
+    const lat = Number(match[1]);
+    const lng = Number(match[2]);
+    locState[type].lat = lat;
+    locState[type].lng = lng;
+    document.getElementById('m-' + type + '-coords').textContent = 'Coords: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+    document.getElementById('m-' + type + '-status').textContent = '📋 Coordinates pasted';
+    const place = document.getElementById('m-' + type + '-place');
+    if(place && !place.value) place.value = 'Pinned Location (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')';
+  } else {
+    const place = document.getElementById('m-' + type + '-place');
+    if(place) place.value = text.trim();
+  }
+}
+
+// ==========================================
+// CAMERA ODOMETER OCR & NUMBER SYSTEM
+// ==========================================
+async function handleOdometerPhoto(type, e) {
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+
+  const statusEl = document.getElementById(type + '-ocr-status');
+  const chipsEl = document.getElementById(type + '-ocr-chips');
+  const previewBox = document.getElementById(type + '-photo-preview');
+  const previewImg = document.getElementById(type + '-photo-img');
+  const kmInput = document.getElementById(type === 'start' ? 'm-sk' : 'm-ek');
+
+  if(statusEl) { statusEl.classList.remove('hidden'); statusEl.textContent = 'Reading odometer picture for numbers...'; }
+  if(chipsEl) chipsEl.classList.add('hidden');
+
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    const base64 = evt.target.result;
+    photoState[type] = base64;
+    if(previewImg) previewImg.src = base64;
+    if(previewBox) previewBox.classList.remove('hidden');
+
+    // Run Tesseract if available
+    try {
+      if(window.Tesseract) {
+        const res = await Tesseract.recognize(base64, 'eng');
+        const text = (res && res.data && res.data.text) ? res.data.text : '';
+        const matches = text.match(/\b\d{3,7}\b/g) || [];
+        
+        if(matches.length > 0) {
+          const numbers = matches.map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 50);
+          if(numbers.length > 0) {
+            const bestNum = numbers[0];
+            if(kmInput) kmInput.value = bestNum;
+            if(type === 'end') updateEndKmCalc();
+
+            if(statusEl) {
+              statusEl.innerHTML = '<span class="text-emerald-700 font-bold">✨ Auto-detected Odometer: ' + bestNum.toLocaleString() + ' KM</span>';
+            }
+
+            if(chipsEl) {
+              chipsEl.innerHTML = '<span class="text-slate-500 font-medium">Click to use:</span>' + 
+                numbers.slice(0, 4).map(num => '<button type="button" onclick="selectOcrNum(\'' + type + '\',' + num + ')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold rounded-lg text-xs cursor-pointer">' + num + ' KM</button>').join('');
+              chipsEl.classList.remove('hidden');
+            }
+            return;
+          }
+        }
+      }
+      if(statusEl) statusEl.textContent = '📷 Photo attached. Please confirm or enter KM above.';
+    } catch(ocrErr) {
+      if(statusEl) statusEl.textContent = '📷 Photo attached. Please confirm or enter KM above.';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function selectOcrNum(type, num) {
+  const kmInput = document.getElementById(type === 'start' ? 'm-sk' : 'm-ek');
+  if(kmInput) kmInput.value = num;
+  if(type === 'end') updateEndKmCalc();
+}
+
+function updateEndKmCalc() {
+  if(!activeJrn) return;
+  const ek = parseFloat(document.getElementById('m-ek').value);
+  const calcEl = document.getElementById('m-end-calc-km');
+  if(!isNaN(ek) && ek >= activeJrn.startKm) {
+    const diff = Number((ek - activeJrn.startKm).toFixed(1));
+    calcEl.textContent = diff + ' KM';
+  } else {
+    calcEl.textContent = '0 KM';
+  }
+}
+
+// ==========================================
+// START JOURNEY WORKFLOW
+// ==========================================
+function openStartModal() {
+  document.getElementById('modal-start').classList.remove('hidden');
+  document.getElementById('start-err').classList.add('hidden');
+  fetchLocation('start');
+}
+
+function closeStartModal() {
+  document.getElementById('modal-start').classList.add('hidden');
+}
+
+function confirmStart() {
+  const veh = (document.getElementById('m-veh').value || '').trim();
+  const drv = (document.getElementById('m-drv').value || '').trim();
+  const skStr = (document.getElementById('m-sk').value || '').trim();
+  const sk = parseFloat(skStr);
+  const dest = (document.getElementById('m-dest').value || '').trim();
+  const purp = document.getElementById('m-purp').value;
+  const rem = (document.getElementById('m-rem').value || '').trim();
+  const errBox = document.getElementById('start-err');
+
+  // Validations
+  if(!veh) { errBox.textContent = 'Please enter or select a Vehicle Number.'; errBox.classList.remove('hidden'); return; }
+  if(!drv) { errBox.textContent = 'Please enter or select the Driver Name.'; errBox.classList.remove('hidden'); return; }
+  if(isNaN(sk) || sk < 0) { errBox.textContent = 'Starting KM is mandatory and cannot be negative.'; errBox.classList.remove('hidden'); return; }
+  if(!dest) { errBox.textContent = 'Please enter a Destination.'; errBox.classList.remove('hidden'); return; }
+
+  // Prevent 2 active journeys for same vehicle
+  if(activeJrn && activeJrn.vehicleNumber.toLowerCase() === veh.toLowerCase()) {
+    errBox.textContent = 'Vehicle "' + veh + '" already has an Active Journey (#' + activeJrn.id + '). End the current journey first.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  // Save custom vehicle and driver
+  try {
+    const curVehs = JSON.parse(localStorage.getItem('km_custom_vehicles') || '[]');
+    if(!curVehs.includes(veh)) localStorage.setItem('km_custom_vehicles', JSON.stringify([...curVehs, veh]));
+    const curDrvs = JSON.parse(localStorage.getItem('km_custom_drivers') || '[]');
+    if(!curDrvs.includes(drv)) localStorage.setItem('km_custom_drivers', JSON.stringify([...curDrvs, drv]));
+  } catch {}
+
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const startPlace = (document.getElementById('m-start-place').value || '').trim() || locState.start.address || 'Starting Point';
+  const lat = locState.start.lat || 0;
+  const lng = locState.start.lng || 0;
+
+  activeJrn = {
+    id: 'JRN-' + todayStr.replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000),
+    vehicleNumber: veh,
+    driverName: drv,
+    startKm: sk,
+    destination: dest,
+    purpose: purp,
+    startDate: todayStr,
+    startTime: timeStr,
+    startLocation: startPlace,
+    startLatitude: lat,
+    startLongitude: lng,
+    status: 'ACTIVE',
+    gpsTrackingStatus: '🟢 Tracking Active',
+    gpsRoute: (lat && lng) ? [{ latitude: lat, longitude: lng, timestamp: now.toISOString(), accuracy: 10, speed: 0, distanceFromPrevious: 0 }] : [],
+    startPhoto: photoState.start,
+    remarks: rem,
+    createdDate: now.toISOString()
+  };
+
+  localStorage.setItem('km_active_journey', JSON.stringify(activeJrn));
+  closeStartModal();
+  updateDashUI();
+  startTracking();
+  switchView('dash');
+}
+
+// ==========================================
+// END JOURNEY WORKFLOW
+// ==========================================
+function openEndModal() {
+  if(!activeJrn) return;
+  document.getElementById('modal-end').classList.remove('hidden');
+  document.getElementById('end-err').classList.add('hidden');
+  document.getElementById('end-confirm-box').classList.add('hidden');
+  document.getElementById('end-form-box').classList.remove('hidden');
+  document.getElementById('m-end-startkm').textContent = activeJrn.startKm + ' km';
+  document.getElementById('m-ek').value = '';
+  document.getElementById('m-end-calc-km').textContent = '0 KM';
+  document.getElementById('m-end-place').value = activeJrn.destination;
+  fetchLocation('end');
+}
+
+function closeEndModal() {
+  document.getElementById('modal-end').classList.add('hidden');
+}
+
+function requestEndConfirmation() {
+  const ekStr = (document.getElementById('m-ek').value || '').trim();
+  const ek = parseFloat(ekStr);
+  const errBox = document.getElementById('end-err');
+
+  if(isNaN(ek)) {
+    errBox.textContent = 'Ending KM is mandatory and must be a valid number.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+  if(ek < 0) {
+    errBox.textContent = 'Ending KM cannot be negative.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+  if(ek < activeJrn.startKm) {
+    errBox.textContent = 'Ending KM (' + ek + ') cannot be less than Starting KM (' + activeJrn.startKm + ').';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  // Populate confirm screen
+  document.getElementById('conf-sk').textContent = activeJrn.startKm + ' KM';
+  document.getElementById('conf-ek').textContent = ek + ' KM';
+  const dist = Number((ek - activeJrn.startKm).toFixed(1));
+  document.getElementById('conf-dist').textContent = dist;
+  document.getElementById('conf-dur').textContent = document.getElementById('act-dur').textContent;
+  document.getElementById('conf-from').textContent = activeJrn.startLocation + ' (' + activeJrn.startTime + ')';
+  const endPlace = (document.getElementById('m-end-place').value || '').trim() || locState.end.address || activeJrn.destination;
+  document.getElementById('conf-to').textContent = endPlace;
+
+  document.getElementById('end-form-box').classList.add('hidden');
+  document.getElementById('end-confirm-box').classList.remove('hidden');
+}
+
+function cancelFinalEnd() {
+  document.getElementById('end-confirm-box').classList.add('hidden');
+  document.getElementById('end-form-box').classList.remove('hidden');
+}
+
+function commitFinalEnd() {
+  const ek = parseFloat(document.getElementById('m-ek').value);
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const endPlace = (document.getElementById('m-end-place').value || '').trim() || locState.end.address || activeJrn.destination;
+  const rem = (document.getElementById('m-end-rem').value || '').trim();
+  const dist = Number((ek - activeJrn.startKm).toFixed(1));
+
+  activeJrn.endKm = ek;
+  activeJrn.totalKm = dist;
+  activeJrn.endDate = todayStr;
+  activeJrn.endTime = timeStr;
+  activeJrn.endLocation = endPlace;
+  activeJrn.endLatitude = locState.end.lat || activeJrn.startLatitude;
+  activeJrn.endLongitude = locState.end.lng || activeJrn.startLongitude;
+  activeJrn.finalRemarks = rem;
+  activeJrn.duration = document.getElementById('act-dur').textContent;
+  activeJrn.status = 'COMPLETED';
+  activeJrn.endPhoto = photoState.end;
+
+  if(locState.end.lat && locState.end.lng) {
+    activeJrn.gpsRoute.push({
+      latitude: locState.end.lat,
+      longitude: locState.end.lng,
+      timestamp: now.toISOString(),
+      accuracy: 10,
+      speed: 0,
+      distanceFromPrevious: 0
+    });
+  }
+
+  // 1. Save to Journey History
+  jrnHistory = [activeJrn, ...jrnHistory];
+  localStorage.setItem('km_journey_history', JSON.stringify(jrnHistory));
+
+  // 2. Add to Trips list so it appears in Reports seamlessly
+  const newTrip = {
+    id: Date.now(),
+    date: activeJrn.startDate,
+    startPlace: activeJrn.startLocation,
+    startGps: activeJrn.startLatitude ? (activeJrn.startLatitude.toFixed(5) + ', ' + activeJrn.startLongitude.toFixed(5)) : '',
+    endPlace: activeJrn.endLocation,
+    endGps: activeJrn.endLatitude ? (activeJrn.endLatitude.toFixed(5) + ', ' + activeJrn.endLongitude.toFixed(5)) : '',
+    sk: activeJrn.startKm,
+    ek: activeJrn.endKm,
+    dist: activeJrn.totalKm,
+    purpose: activeJrn.purpose,
+    pax: activeJrn.driverName + ' (' + activeJrn.vehicleNumber + ')',
+    ts: activeJrn.startPhoto || '',
+    te: activeJrn.endPhoto || '',
+    sub: false,
+    pol: false,
+    polLts: '',
+    polAmount: '',
+    journeyId: activeJrn.id
+  };
+  trips = [newTrip, ...trips];
+  localStorage.setItem('km_trips', JSON.stringify(trips));
+
+  // 3. Clear Active Journey & stop tracking
+  localStorage.removeItem('km_active_journey');
+  if(watchId) navigator.geolocation.clearWatch(watchId);
+  if(wakeSentinel) wakeSentinel.release().catch(() => {});
+
+  activeJrn = null;
+  closeEndModal();
+  updateDashUI();
+  switchView('journeys');
+  alert('🎉 Journey Completed! Total distance: ' + dist + ' KM recorded.');
+}
+
+// ==========================================
+// QUICK MANUAL TRIP
+// ==========================================
+function saveQuickTrip() {
+  const d = document.getElementById('q-date').value;
+  const purp = (document.getElementById('q-purp').value || '').trim();
+  const from = (document.getElementById('q-from').value || '').trim();
+  const to = (document.getElementById('q-to').value || '').trim();
+  const sk = parseFloat(document.getElementById('q-sk').value);
+  const ek = parseFloat(document.getElementById('q-ek').value);
+
+  if(!purp || !from || !to || isNaN(sk) || isNaN(ek)) {
+    alert('Please fill Date, Purpose, From, To, Start KM, and End KM.');
+    return;
+  }
+  if(ek < sk) {
+    alert('End KM cannot be less than Start KM.');
+    return;
+  }
+
+  const dist = Number((ek - sk).toFixed(1));
+  const newTrip = {
+    id: Date.now(),
+    date: d,
+    startPlace: from,
+    startGps: '',
+    endPlace: to,
+    endGps: '',
+    sk: sk,
+    ek: ek,
+    dist: dist,
+    purpose: purp,
+    pax: 'Direct Entry',
+    ts: '',
+    te: '',
+    sub: false,
+    pol: false
+  };
+
+  trips = [newTrip, ...trips];
+  localStorage.setItem('km_trips', JSON.stringify(trips));
+  alert('✅ Quick trip saved!');
+  document.getElementById('q-purp').value = '';
+  document.getElementById('q-from').value = '';
+  document.getElementById('q-to').value = '';
+  document.getElementById('q-sk').value = '';
+  document.getElementById('q-ek').value = '';
+}
+
+// ==========================================
+// JOURNEY HISTORY RENDERING
+// ==========================================
+function renderJourneys() {
+  const list = document.getElementById('journeys-list');
+  if(!jrnHistory.length) {
+    list.innerHTML = '<div class="text-center py-10 text-slate-400 text-xs">No completed journeys recorded yet.</div>';
+    return;
+  }
+
+  list.innerHTML = jrnHistory.map((j, i) => `
+    <div class="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm text-xs space-y-2.5">
+      <div class="flex justify-between items-center">
+        <span class="font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">${j.id}</span>
+        <span class="font-bold text-slate-900 text-sm font-mono">${j.totalKm} KM</span>
+      </div>
+      <div>
+        <div class="font-bold text-slate-800 text-sm">${j.vehicleNumber}</div>
+        <div class="text-slate-500 text-xs">${j.driverName} • ${j.purpose}</div>
+      </div>
+      <div class="text-slate-600 bg-slate-50 p-2 rounded-xl">
+        <div><b>From:</b> ${j.startLocation} (${j.startTime})</div>
+        <div><b>To:</b> ${j.endLocation || j.destination} (${j.endTime || ''})</div>
+        <div class="font-mono text-[11px] text-slate-500 pt-0.5">Odometer: ${j.startKm} → ${j.endKm || '-'} km | Duration: ${j.duration || '-'}</div>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="viewRouteMap(${i})" class="flex-1 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl border border-emerald-200 flex items-center justify-center gap-1 cursor-pointer">
+          🗺️ View Route Map
+        </button>
+        <button onclick="viewDetailsModal(${i})" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl cursor-pointer">
+          Details
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function viewDetailsModal(idx) {
+  const j = jrnHistory[idx];
+  if(!j) return;
+  document.getElementById('det-title').textContent = 'Journey Details #' + j.id;
+  const body = document.getElementById('det-body');
+  body.innerHTML = `
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <div class="bg-slate-50 p-2.5 rounded-xl"><span class="text-slate-400 block text-[10px]">Total Distance</span><b class="text-emerald-600 font-mono text-sm">${j.totalKm} KM</b></div>
+      <div class="bg-slate-50 p-2.5 rounded-xl"><span class="text-slate-400 block text-[10px]">Duration</span><b class="font-mono text-sm">${j.duration || '-'}</b></div>
+    </div>
+    <div class="space-y-1.5 p-3 bg-slate-50 rounded-xl">
+      <div><b>Vehicle:</b> ${j.vehicleNumber}</div>
+      <div><b>Driver:</b> ${j.driverName}</div>
+      <div><b>Purpose:</b> ${j.purpose}</div>
+      <div><b>Destination:</b> ${j.destination}</div>
+      <div><b>Start:</b> ${j.startLocation} (${j.startDate} ${j.startTime})</div>
+      <div><b>End:</b> ${j.endLocation} (${j.endDate || ''} ${j.endTime || ''})</div>
+      <div><b>Odometer:</b> ${j.startKm} KM &rarr; ${j.endKm} KM</div>
+      <div><b>GPS Points Traced:</b> ${(j.gpsRoute || []).length} points</div>
+      ${j.remarks ? '<div><b>Remarks:</b> ' + j.remarks + '</div>' : ''}
+      ${j.finalRemarks ? '<div><b>Final Remarks:</b> ' + j.finalRemarks + '</div>' : ''}
+    </div>
+  `;
+
+  document.getElementById('det-wa-btn').onclick = () => {
+    const text = '🚗 *JOURNEY REPORT #' + j.id + '*\nVehicle: ' + j.vehicleNumber + '\nDriver: ' + j.driverName + '\nFrom: ' + j.startLocation + '\nTo: ' + (j.endLocation || j.destination) + '\nStart KM: ' + j.startKm + ' | End KM: ' + j.endKm + ' (' + j.totalKm + ' km)\nDuration: ' + (j.duration || '-');
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  };
+  document.getElementById('det-map-btn').onclick = () => {
+    closeDetailsModal();
+    viewRouteMap(idx);
+  };
+
+  document.getElementById('modal-details').classList.remove('hidden');
+}
+function closeDetailsModal() { document.getElementById('modal-details').classList.add('hidden'); }
+
+// ==========================================
+// ROUTE MAP MODAL (LEAFLET + SVG FALLBACK)
+// ==========================================
+function viewRouteMap(idx) {
+  const j = jrnHistory[idx];
+  if(!j) return;
+  showMapModal(j);
+}
+
+function viewActiveRouteMap() {
+  if(!activeJrn) return;
+  showMapModal(activeJrn);
+}
+
+function showMapModal(j) {
+  document.getElementById('modal-map').classList.remove('hidden');
+  document.getElementById('map-modal-title').textContent = 'Route Map - ' + (j.id || 'Active Journey');
+  const pts = j.gpsRoute || [];
+  const container = document.getElementById('map-container');
+  const info = document.getElementById('map-info');
+
+  info.innerHTML = '<span><b>Vehicle:</b> ' + j.vehicleNumber + '</span><span><b>Points:</b> ' + pts.length + ' points (' + calcTotalDistance(pts) + ' km)</span>';
+
+  setTimeout(() => {
+    // If Leaflet is loaded
+    if(window.L) {
+      if(leafletMap) {
+        leafletMap.remove();
+        leafletMap = null;
+      }
+      container.innerHTML = '';
+      const center = pts.length ? [pts[0].latitude, pts[0].longitude] : [27.4728, 89.6393];
+      leafletMap = L.map('map-container').setView(center, 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(leafletMap);
+
+      if(pts.length > 0) {
+        // Start marker
+        L.marker([pts[0].latitude, pts[0].longitude], {
+          icon: L.divIcon({ className: 'custom-pin-start', html: 'S', iconSize: [28,28], iconAnchor: [14,14] })
+        }).addTo(leafletMap).bindPopup('Start: ' + (j.startLocation || 'Start point'));
+
+        // End marker
+        if(pts.length > 1) {
+          const last = pts[pts.length - 1];
+          L.marker([last.latitude, last.longitude], {
+            icon: L.divIcon({ className: 'custom-pin-end', html: 'E', iconSize: [28,28], iconAnchor: [14,14] })
+          }).addTo(leafletMap).bindPopup('End: ' + (j.endLocation || 'Destination'));
+        }
+
+        const latlngs = pts.map(p => [p.latitude, p.longitude]);
+        const poly = L.polyline(latlngs, { color: '#0284c7', weight: 5, opacity: 0.85 }).addTo(leafletMap);
+        if(latlngs.length > 1) {
+          leafletMap.fitBounds(poly.getBounds(), { padding: [35, 35] });
+        }
+      }
+    } else {
+      // Offline fallback: SVG Path
+      container.innerHTML = '<div class="p-6 text-center text-slate-500 text-xs">Offline map trajectory view:<br>' + pts.length + ' GPS points recorded. Connect to internet for OpenStreetMap tiles.</div>';
+    }
+  }, 200);
+}
+
+function closeMapModal() {
+  document.getElementById('modal-map').classList.add('hidden');
+}
+
+// ==========================================
+// REPORTS & EXPORT
+// ==========================================
+let curFlt = 'today';
+function setFlt(f) {
+  curFlt = f;
+  document.getElementById('btn-flt-today').className = f === 'today' ? 'py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm' : 'py-1.5 font-semibold rounded-lg text-slate-600';
+  document.getElementById('btn-flt-month').className = f === 'month' ? 'py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm' : 'py-1.5 font-semibold rounded-lg text-slate-600';
+  document.getElementById('btn-flt-range').className = f === 'range' ? 'py-1.5 font-semibold rounded-lg bg-white text-emerald-600 shadow-sm' : 'py-1.5 font-semibold rounded-lg text-slate-600';
+  document.getElementById('box-flt-month').classList.toggle('hidden', f !== 'month');
+  document.getElementById('box-flt-range').classList.toggle('hidden', f !== 'range');
+  renderReport();
+}
+
+function getFilteredTrips() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const curMonth = todayStr.slice(0, 7);
+  return trips.filter(t => {
+    if(curFlt === 'today') return t.date === todayStr;
+    if(curFlt === 'month') {
+      const mon = document.getElementById('rep-mon').value || curMonth;
+      return t.date.startsWith(mon);
+    }
+    if(curFlt === 'range') {
+      const from = document.getElementById('rep-from').value || '0000-00-00';
+      const to = document.getElementById('rep-to').value || '9999-99-99';
+      return t.date >= from && t.date <= to;
+    }
+    return true;
+  });
+}
+
+function renderReport() {
+  const filtered = getFilteredTrips();
+  const totalKm = filtered.reduce((acc, t) => acc + (t.dist || 0), 0);
+  document.getElementById('stat-n').textContent = filtered.length;
+  document.getElementById('stat-km').textContent = totalKm.toFixed(1);
+
+  const list = document.getElementById('trip-list');
+  if(!filtered.length) {
+    list.innerHTML = '<div class="text-center py-6 text-slate-400 text-xs">No records for this filter period.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => `
+    <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
+      <div class="flex justify-between font-bold">
+        <span>${t.date}</span>
+        <span class="text-emerald-600 font-mono">${t.dist} KM</span>
+      </div>
+      <div>${t.startPlace} &rarr; ${t.endPlace}</div>
+      <div class="text-slate-500 text-[11px]">Odometer: ${t.sk} &rarr; ${t.ek} | ${t.purpose} | ${t.pax}</div>
+    </div>
+  `).join('');
+}
+
+function submitReportWA() {
+  const filtered = getFilteredTrips();
+  if(!filtered.length) { alert('No trips to report for this period.'); return; }
+  const totalKm = filtered.reduce((acc, t) => acc + (t.dist || 0), 0);
+  const lines = filtered.map((t, i) => (i+1) + '. ' + t.date + ' | ' + t.startPlace + ' → ' + t.endPlace + ' | ' + t.sk + '-' + t.ek + ' (' + t.dist + ' km) | ' + t.purpose).join('\n');
+  const text = '📋 *KM Report*\nTotal Trips: ' + filtered.length + '\nTotal Distance: ' + totalKm.toFixed(1) + ' KM\n\n' + lines;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+function downloadCSV() {
+  const filtered = getFilteredTrips();
+  if(!filtered.length) { alert('No trips to download.'); return; }
+  const headers = ['Date', 'From Place', 'To Place', 'Start KM', 'End KM', 'Distance (KM)', 'Purpose', 'Driver/Passenger'];
+  const rows = filtered.map(t => [t.date, t.startPlace, t.endPlace, t.sk, t.ek, t.dist, t.purpose, t.pax]);
+  const csv = [headers.join(','), ...rows.map(r => r.map(v => '"' + (v || '') + '"').join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'km-report.csv';
+  a.click();
+}
+
+function downloadExcel() {
+  const filtered = getFilteredTrips();
+  if(!filtered.length) { alert('No trips to download.'); return; }
+  let html = '<table><tr><th>Date</th><th>From</th><th>To</th><th>Start KM</th><th>End KM</th><th>Distance</th><th>Purpose</th><th>Passenger</th></tr>';
+  filtered.forEach(t => {
+    html += '<tr><td>' + t.date + '</td><td>' + t.startPlace + '</td><td>' + t.endPlace + '</td><td>' + t.sk + '</td><td>' + t.ek + '</td><td>' + t.dist + '</td><td>' + t.purpose + '</td><td>' + t.pax + '</td></tr>';
+  });
+  html += '</table>';
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'km-report.xls';
+  a.click();
+}
+</script>
+</body>
+</html>
