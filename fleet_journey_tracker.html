@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Journey & POL Tracker - Standalone</title>
+  <meta name="description" content="Fleet Journey & POL Odometer Tracker with photo capture, Excel report export, and GPS tracking." />
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React 18 & ReactDOM from Cloudflare CDN with jsDelivr fallback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script>
+    if (!window.React) {
+      document.write("<script src=\"https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js\"><\/script>");
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script>
+    if (!window.ReactDOM) {
+      document.write("<script src=\"https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js\"><\/script>");
+    }
+  </script>
+  
+  <!-- ExcelJS for in-browser Excel report export with photos -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" crossorigin="anonymous"></script>
+  <script>
+    if (!window.ExcelJS) {
+      document.write("<script src=\"https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js\"><\/script>");
+    }
+  </script>
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap");
+    body {
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+  </style>
+<script src="/_aistudio-iframe.js?v=6634132a"></script></head>
+<body class="bg-white text-black font-sans selection:bg-emerald-100 selection:text-emerald-900 pb-10 antialiased">
+  <div id="root">
+    <div style="min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; text-align: center; padding: 20px;">
+      <div style="width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px;"></div>
+      <h2 style="font-size: 18px; font-weight: 800; text-transform: uppercase; margin: 0 0 8px;">Opening Journey & POL Tracker...</h2>
+      <p style="font-size: 13px; color: #64748b; margin: 0;">Please wait while the tracker interface loads.</p>
+      <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+    </div>
+  </div>
+
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      var root = document.getElementById("root");
+      if (root && root.innerHTML.indexOf("Opening Journey") !== -1) {
+        root.innerHTML = "<div style="max-width: 500px; margin: 50px auto; padding: 24px; border: 2px solid #ef4444; border-radius: 16px; background: #fef2f2; font-family: sans-serif;">" +
+          "<h2 style="color: #991b1b; font-size: 18px; font-weight: bold; margin-top: 0;">Error Opening Application</h2>" +
+          "<p style="color: #7f1d1d; font-size: 13px;">" + (msg || "An unexpected error occurred while loading dependencies.") + "</p>" +
+          "<p style="color: #991b1b; font-size: 12px;">If you opened this file offline for the first time, please connect to the internet once so your browser can cache React and Tailwind CSS, or open via a modern browser (Chrome, Edge, Firefox, Safari).</p>" +
+          "<button onclick="location.reload()" style="margin-top: 12px; padding: 10px 16px; background: #000; color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; border: none;">Retry Loading</button>" +
+          "</div>";
+      }
+    };
+  </script>
+
+  <!-- Pre-compiled Standard JavaScript (Zero Babel Overhead, Runs Natively) -->
+  <script>
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+function Car({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" }), /* @__PURE__ */ React.createElement("circle", { cx: "7", cy: "17", r: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M9 17h6" }), /* @__PURE__ */ React.createElement("circle", { cx: "17", cy: "17", r: "2" }));
+}
+function SettingsIcon({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
+}
+function DownloadIcon({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }), /* @__PURE__ */ React.createElement("polyline", { points: "7 10 12 15 17 10" }), /* @__PURE__ */ React.createElement("line", { x1: "12", x2: "12", y1: "15", y2: "3" }));
+}
+function FileSpreadsheet({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" }), /* @__PURE__ */ React.createElement("path", { d: "M14 2v4a2 2 0 0 0 2 2h4" }), /* @__PURE__ */ React.createElement("path", { d: "M8 13h2" }), /* @__PURE__ */ React.createElement("path", { d: "M14 13h2" }), /* @__PURE__ */ React.createElement("path", { d: "M8 17h2" }), /* @__PURE__ */ React.createElement("path", { d: "M14 17h2" }));
+}
+function Play({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("polygon", { points: "6 3 20 12 6 21 6 3" }));
+}
+function Square({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("rect", { width: "18", height: "18", x: "3", y: "3", rx: "2" }));
+}
+function Navigation({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("polygon", { points: "3 11 22 2 13 21 11 13 3 11" }));
+}
+function Clock({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("polyline", { points: "12 6 12 12 16 14" }));
+}
+function MapPin({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "10", r: "3" }));
+}
+function Fuel({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("line", { x1: "3", x2: "15", y1: "22", y2: "22" }), /* @__PURE__ */ React.createElement("line", { x1: "4", x2: "14", y1: "9", y2: "9" }), /* @__PURE__ */ React.createElement("path", { d: "M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18" }), /* @__PURE__ */ React.createElement("path", { d: "M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5" }));
+}
+function Camera({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "13", r: "3" }));
+}
+function Trash2({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M3 6h18" }), /* @__PURE__ */ React.createElement("path", { d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" }), /* @__PURE__ */ React.createElement("path", { d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" }), /* @__PURE__ */ React.createElement("line", { x1: "10", x2: "10", y1: "11", y2: "17" }), /* @__PURE__ */ React.createElement("line", { x1: "14", x2: "14", y1: "11", y2: "17" }));
+}
+function Loader2({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className: `animate-spin ${className}` }, /* @__PURE__ */ React.createElement("path", { d: "M21 12a9 9 0 1 1-6.219-8.56" }));
+}
+function CheckCircle2({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" }), /* @__PURE__ */ React.createElement("path", { d: "m9 12 2 2 4-4" }));
+}
+function X({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M18 6 6 18" }), /* @__PURE__ */ React.createElement("path", { d: "m6 6 12 12" }));
+}
+function UserIcon({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }));
+}
+function History({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }), /* @__PURE__ */ React.createElement("path", { d: "M3 3v5h5" }), /* @__PURE__ */ React.createElement("path", { d: "M12 7v5l4 2" }));
+}
+function Calendar({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("rect", { width: "18", height: "18", x: "3", y: "4", rx: "2", ry: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "16", x2: "16", y1: "2", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "8", x2: "8", y1: "2", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "3", x2: "21", y1: "10", y2: "10" }));
+}
+function Filter({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("polygon", { points: "22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" }));
+}
+function AlertCircle({ size = 20, className = "" }) {
+  return /* @__PURE__ */ React.createElement("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "12", x2: "12", y1: "8", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", x2: "12.01", y1: "16", y2: "16" }));
+}
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`, {
+      headers: { "Accept-Language": "en" }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const addr = data.address || {};
+      const parts = [
+        addr.amenity || addr.building || addr.road,
+        addr.suburb || addr.neighbourhood || addr.village || addr.town || addr.city,
+        addr.state || addr.county
+      ].filter(Boolean);
+      if (parts.length > 0) return parts.slice(0, 2).join(", ");
+      if (data.display_name) return data.display_name.split(",").slice(0, 2).join(", ");
+    }
+  } catch (e) {
+  }
+  return "";
+}
+function compressImageForOcr(file, maxWidth = 1600, quality = 0.8) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = maxWidth / width * height;
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve({
+          url: dataUrl,
+          base64: dataUrl.split(",")[1]
+        });
+      };
+    };
+    reader.onerror = () => resolve(null);
+  });
+}
+async function detectOdometerReading(imageBase64) {
+  try {
+    const response = await fetch("/api/ocr-odometer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageBase64 })
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (e) {
+  }
+  return { success: false, odometer: null, confidence: 0 };
+}
+function SettingsModal({ isOpen, onClose, settings, onSave, onDownloadHtml }) {
+  const [vehicleNumber, setVehicleNumber] = useState(settings.vehicleNumber);
+  const [driverName, setDriverName] = useState(settings.driverName);
+  useEffect(() => {
+    if (isOpen) {
+      setVehicleNumber(settings.vehicleNumber);
+      setDriverName(settings.driverName);
+    }
+  }, [isOpen, settings]);
+  const handleSave = () => {
+    onSave({
+      vehicleNumber: vehicleNumber.trim().toUpperCase(),
+      driverName: driverName.trim()
+    });
+    onClose();
+  };
+  if (!isOpen) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border-2 border-black max-h-[90vh] flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 flex items-center justify-between border-b-2 border-black bg-white shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center" }, /* @__PURE__ */ React.createElement(SettingsIcon, { size: 22 })), /* @__PURE__ */ React.createElement("h3", { className: "font-black text-xl uppercase tracking-tight text-black" }, "Default Settings")), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full transition-colors text-black" }, /* @__PURE__ */ React.createElement(X, { size: 24 }))), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 space-y-6 overflow-y-auto flex-1" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-slate-600 uppercase" }, "Set your default vehicle number and driver name. These will auto-fill when starting a journey."), /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[12px] font-bold uppercase tracking-wider text-black ml-1" }, "Default Vehicle Number"), /* @__PURE__ */ React.createElement("div", { className: "relative group" }, /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 top-1/2 -translate-y-1/2 text-black" }, /* @__PURE__ */ React.createElement(Car, { size: 20 })), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      value: vehicleNumber,
+      onChange: (e) => setVehicleNumber(e.target.value.toUpperCase()),
+      placeholder: "E.g. BT-1-A1234",
+      className: "w-full pl-12 pr-4 py-4 bg-white border-2 border-black rounded-xl focus:bg-white outline-none transition-all font-bold text-lg uppercase placeholder:text-slate-400 text-black"
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[12px] font-bold uppercase tracking-wider text-black ml-1" }, "Default Driver Name"), /* @__PURE__ */ React.createElement("div", { className: "relative group" }, /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 top-1/2 -translate-y-1/2 text-black" }, /* @__PURE__ */ React.createElement(UserIcon, { size: 20 })), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      value: driverName,
+      onChange: (e) => setDriverName(e.target.value),
+      placeholder: "Enter Driver Name",
+      className: "w-full pl-12 pr-4 py-4 bg-white border-2 border-black rounded-xl focus:bg-white outline-none transition-all font-bold text-lg placeholder:text-slate-400 text-black"
+    }
+  )))), onDownloadHtml && /* @__PURE__ */ React.createElement("div", { className: "pt-4 border-t-2 border-black/10 space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[12px] font-black uppercase tracking-wider text-black ml-1" }, "Download Standalone App"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-600 font-bold ml-1" }, "Download the complete app as a single .html file that runs anywhere without internet."), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: onDownloadHtml,
+      className: "w-full flex items-center justify-center gap-2 p-3.5 border-2 border-black rounded-xl bg-slate-100 hover:bg-slate-200 transition-all font-black text-xs uppercase text-black active:translate-y-[1px]"
+    },
+    /* @__PURE__ */ React.createElement(DownloadIcon, { size: 18 }),
+    /* @__PURE__ */ React.createElement("span", null, "Download Standalone HTML File")
+  ))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-white flex gap-3 border-t-2 border-black" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: onClose,
+      className: "flex-1 py-4 px-4 bg-white border-2 border-black text-black font-black uppercase rounded-xl hover:bg-slate-100 transition-all active:scale-[0.98]"
+    },
+    "Cancel"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: handleSave,
+      className: "flex-[2] py-4 px-4 bg-black text-white border-2 border-black font-black uppercase rounded-xl hover:bg-slate-800 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none"
+    },
+    /* @__PURE__ */ React.createElement(CheckCircle2, { size: 20 }),
+    " Save Settings"
+  ))));
+}
+function JourneyStartModal({
+  isOpen,
+  onClose,
+  onStartJourney,
+  defaultVehicleNumber = "",
+  defaultDriverName = "",
+  defaultStartOdometer
+}) {
+  const [vehicleNumber, setVehicleNumber] = useState(defaultVehicleNumber);
+  const [driverName, setDriverName] = useState(defaultDriverName);
+  const [startOdometer, setStartOdometer] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [startLocation, setStartLocation] = useState("");
+  const [isLocating, setIsLocating] = useState(false);
+  const [error, setError] = useState("");
+  const [lat, setLat] = useState(null);
+  const [lng, setLng] = useState(null);
+  const [images, setImages] = useState([]);
+  const [isOcrScanning, setIsOcrScanning] = useState(false);
+  const [ocrConfidence, setOcrConfidence] = useState(null);
+  const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false);
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultVehicleNumber) setVehicleNumber(defaultVehicleNumber);
+      if (defaultDriverName) setDriverName(defaultDriverName);
+      setStartOdometer(defaultStartOdometer !== void 0 ? String(defaultStartOdometer) : "");
+      setPurpose("");
+      setImages([]);
+      setOcrConfidence(null);
+      setShowLowConfidenceWarning(false);
+      setLat(null);
+      setLng(null);
+      handleFetchLocation();
+    }
+  }, [isOpen, defaultVehicleNumber, defaultDriverName, defaultStartOdometer]);
+  const handleImageUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsOcrScanning(true);
+    setOcrConfidence(null);
+    setShowLowConfidenceWarning(false);
+    const newImages = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const compressed = await compressImageForOcr(file, 1600, 0.9);
+      if (compressed) {
+        newImages.push(compressed.url);
+        if (i === 0 && !startOdometer) {
+          try {
+            const result = await detectOdometerReading(compressed.base64);
+            if (result.success && result.odometer !== null) {
+              setStartOdometer(String(result.odometer));
+              setOcrConfidence(result.confidence);
+              if (result.confidence < 0.85) {
+                setShowLowConfidenceWarning(true);
+              }
+            }
+          } catch (err) {
+          }
+        }
+      }
+    }
+    setImages((prev) => [...prev, ...newImages]);
+    setIsOcrScanning(false);
+  };
+  const removeImage = (index) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+  const handleFetchLocation = () => {
+    setIsLocating(true);
+    if (!navigator.geolocation) {
+      setIsLocating(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const latitude = pos.coords.latitude;
+        const longitude = pos.coords.longitude;
+        setLat(latitude);
+        setLng(longitude);
+        const addr = await reverseGeocode(latitude, longitude);
+        const coordsStr = `[GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}]`;
+        if (addr) setStartLocation(`${addr} ${coordsStr}`);
+        else setStartLocation(coordsStr);
+        setIsLocating(false);
+      },
+      () => {
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 5e3 }
+    );
+  };
+  const handleConfirm = () => {
+    setError("");
+    const odo = parseFloat(startOdometer);
+    if (isNaN(odo) || odo < 0) {
+      setError("Please enter a valid starting Odometer KM.");
+      return;
+    }
+    if (!vehicleNumber.trim()) {
+      setError("Vehicle number is required.");
+      return;
+    }
+    if (!driverName.trim()) {
+      setError("Driver name is required.");
+      return;
+    }
+    const now = /* @__PURE__ */ new Date();
+    const newJourney = {
+      id: `JRN-${now.getTime()}`,
+      startTime: now.toISOString(),
+      startOdometer: odo,
+      startLocation: startLocation || "Unknown Start Location",
+      startLatitude: lat !== null ? lat : void 0,
+      startLongitude: lng !== null ? lng : void 0,
+      vehicleNumber: vehicleNumber.trim().toUpperCase(),
+      driverName: driverName.trim(),
+      purpose: purpose.trim() || "General Journey",
+      status: "ACTIVE",
+      images
+    };
+    onStartJourney(newJourney);
+    onClose();
+  };
+  if (!isOpen) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border-2 border-black max-h-[90vh] flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 flex items-center justify-between border-b-2 border-black bg-white shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-black" }, /* @__PURE__ */ React.createElement(Play, { size: 22, className: "fill-emerald-800" })), /* @__PURE__ */ React.createElement("h3", { className: "font-black text-xl uppercase tracking-tight text-black" }, "Start Journey / Trip")), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full transition-colors text-black" }, /* @__PURE__ */ React.createElement(X, { size: 24 }))), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 space-y-6 overflow-y-auto flex-1" }, error && /* @__PURE__ */ React.createElement("div", { className: "bg-rose-50 border-2 border-black text-rose-800 px-4 py-3 rounded-2xl flex items-start gap-3 text-sm font-bold" }, /* @__PURE__ */ React.createElement("p", null, error)), /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[12px] font-bold uppercase tracking-wider text-black ml-1" }, "Vehicle Number"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 top-1/2 -translate-y-1/2 text-black" }, /* @__PURE__ */ React.createElement(Car, { size: 20 })), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      value: vehicleNumber,
+      onChange: (e) => setVehicleNumber(e.target.value.toUpperCase()),
+      placeholder: "E.g. BT-1-A1234",
+      className: "w-full pl-12 pr-4 py-4 bg-white border-2 border-black rounded-xl outline-none font-bold text-lg uppercase text-black placeholder:text-slate-400"
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[12px] font-bold uppercase tracking-wider text-black ml-1" }, "Driver Name"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 top-1/2 -translate-y-1/2 text-black" }, /* @__PURE__ */ React.createElement(UserIcon, { size: 20 })), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      value: driverName,
+      onChange: (e) => setDriverName(e.target.value),
+      placeholder: "Enter Driver Name",
+      className: "w-full pl-12 pr-4 py-4 bg-white border-2 border-black rounded-xl outline-none font-bold text-lg text-black placeholder:text-slate-400"
+    }
+  )))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] font-bold uppercase tracking-wider text-black ml-1" }, "Start Odometer Reading"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      inputMode: "decimal",
+      value: startOdometer,
+      onChange: (e) => setStartOdometer(e.target.value),
+      placeholder: "Enter Starting KM",
+      className: "w-full pl-4 pr-16 py-4 bg-white border-2 border-black rounded-xl outline-none text-xl font-bold font-mono text-black placeholder:text-slate-400"
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-black font-bold" }, "KM"))), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] font-bold uppercase tracking-wider text-black ml-1" }, "Odometer Photo (Auto-detect KM)"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-3" }, images.map((img, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "relative w-20 h-20 rounded-xl overflow-hidden border-2 border-black" }, /* @__PURE__ */ React.createElement("img", { src: img, alt: "Odometer", className: "w-full h-full object-cover" }), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => removeImage(idx),
+      className: "absolute top-1 right-1 p-1 bg-rose-500 text-white rounded-md border border-black"
+    },
+    /* @__PURE__ */ React.createElement(Trash2, { size: 12 })
+  ))), /* @__PURE__ */ React.createElement("label", { className: "w-20 h-20 rounded-xl border-2 border-dashed border-black flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors bg-white text-black" }, isOcrScanning ? /* @__PURE__ */ React.createElement(Loader2, { size: 20, className: "animate-spin text-black" }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Camera, { size: 20 }), /* @__PURE__ */ React.createElement("span", { className: "text-[9px] font-bold uppercase mt-1" }, "Capture")), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "file",
+      accept: "image/*",
+      capture: "environment",
+      onChange: handleImageUpload,
+      className: "hidden"
+    }
+  ))), ocrConfidence !== null && /* @__PURE__ */ React.createElement("p", { className: "text-[10px] font-bold text-emerald-700" }, "Odometer auto-detected via AI OCR (Confidence: ", Math.round(ocrConfidence * 100), "%)"), showLowConfidenceWarning && /* @__PURE__ */ React.createElement("p", { className: "text-[10px] font-bold text-amber-700" }, "Low confidence on auto-read. Please verify the start odometer value.")), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] font-bold uppercase tracking-wider text-black ml-1" }, "Start Location"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      value: startLocation,
+      onChange: (e) => setStartLocation(e.target.value),
+      placeholder: "Capturing start location...",
+      className: "w-full pl-4 pr-12 py-3 bg-white border-2 border-black rounded-xl outline-none min-h-[60px] text-sm resize-none text-black font-bold placeholder:text-slate-400"
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: handleFetchLocation,
+      disabled: isLocating,
+      className: "absolute right-3 top-3 p-2 text-black hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+    },
+    isLocating ? /* @__PURE__ */ React.createElement(Loader2, { size: 18, className: "animate-spin" }) : /* @__PURE__ */ React.createElement(MapPin, { size: 18 })
+  ))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] font-bold uppercase tracking-wider text-black ml-1" }, "Trip Purpose / Remarks"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      value: purpose,
+      onChange: (e) => setPurpose(e.target.value),
+      placeholder: "E.g. Office to Inspection Site",
+      className: "w-full px-4 py-3 bg-white border-2 border-black rounded-xl outline-none font-bold text-black placeholder:text-slate-400"
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-white flex gap-3 border-t-2 border-black" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: onClose,
+      className: "flex-1 py-4 px-4 bg-white border-2 border-black text-black font-black uppercase rounded-xl hover:bg-slate-100 transition-all"
+    },
+    "Cancel"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: handleConfirm,
+      className: "flex-[2] py-4 px-4 bg-emerald-400 text-black border-2 border-black font-black uppercase rounded-xl hover:bg-emerald-500 transition-all flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none"
+    },
+    /* @__PURE__ */ React.createElement(Play, { size: 20, className: "fill-black" }),
+    " Start Journey"
+  ))));
+}
+function JourneyEndModal({
+  isOpen,
+  onClose,
+  journey,
+  onEndJourney
+}) {
+  const [endOdometer, setEndOdometer] = useState("");
+  const [endLocation, setEndLocation] = useState("");
+  const [endLat, setEndLat] = useState(null);
+  const [endLng, setEndLng] = useState(null);
+  const [images, setImages] = useState([]);
+  const [fuelLiters, setFuelLiters] = useState("");
+  const [fuelAmount, setFuelAmount] = useState("");
+  const [issuePol, setIssuePol] = useState(false);
+  const [isOcrScanning, setIsOcrScanning] = useState(false);
+  const [ocrConfidence, setOcrConfidence] = useState(null);
+  const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (isOpen && journey) {
+      setEndOdometer("");
+      setImages([]);
+      setFuelLiters("");
+      setFuelAmount("");
+      setIssuePol(false);
+      setOcrConfidence(null);
+      setShowLowConfidenceWarning(false);
+      setEndLat(null);
+      setEndLng(null);
+      handleFetchLocation();
+    }
+  }, [isOpen, journey]);
+  const handleImageUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsOcrScanning(true);
+    setOcrConfidence(null);
+    setShowLowConfidenceWarning(false);
+    const newImages = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const compressed = await compressImageForOcr(file, 1600, 0.9);
+      if (compressed) {
+        newImages.push(compressed.url);
+        if (i === 0 && !endOdometer) {
+          try {
+            const result = await detectOdometerReading(compressed.base64);
+            if (result.success && result.odometer !== null) {
+              setEndOdometer(String(result.odometer));
+              setOcrConfidence(result.confidence);
+              if (result.confidence < 0.85) {
+                setShowLowConfidenceWarning(true);
+              }
+            }
+          } catch (err) {
+          }
+        }
+      }
+    }
+    setImages((prev) => [...prev, ...newImages]);
+    setIsOcrScanning(false);
+  };
+  const removeImage = (index) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+  const handleFetchLocation = () => {
+    setIsLocating(true);
+    if (!navigator.geolocation) {
+      setIsLocating(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const latitude = pos.coords.latitude;
+        const longitude = pos.coords.longitude;
+        setEndLat(latitude);
+        setEndLng(longitude);
+        const addr = await reverseGeocode(latitude, longitude);
+        const coordsStr = `[GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}]`;
+        if (addr) setEndLocation(`${addr} ${coordsStr}`);
+        else setEndLocation(coordsStr);
+        setIsLocating(false);
+      },
+      () => {
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 5e3 }
+    );
+  };
+  const handleConfirm = () => {
+    setError("");
+    if (!journey) return;
+    const endOdo = parseFloat(endOdometer);
+    if (isNaN(endOdo) || endOdo < journey.startOdometer) {
+      setError(`End KM cannot be lower than starting KM (${journey.startOdometer} KM).`);
+      return;
+    }
+    onEndJourney(
+      journey.id,
+      endOdo,
+      endLocation || "Unknown End Location",
+      endLat !== void 0 && endLat !== null ? endLat : void 0,
+      endLng !== void 0 && endLng !== null ? endLng : void 0,
+      images,
+      issuePol && fuelLiters ? parseFloat(fuelLiters) : void 0,
+      issuePol && fuelAmount ? parseFloat(fuelAmount) : void 0
+    );
+    onClose();
+  };
+  if (!isOpen || !journey) return null;
+  const estimatedTripKm = parseFloat(endOdometer) - journey.startOdometer;
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border-2 border-black max-h-[90vh] flex flex-col" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-5 flex items-center justify-between border-b-2 border-black bg-white shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-10 h-10 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center border border-black" }, /* @__PURE__ */ React.createElement(Square, { size: 22, className: "fill-rose-800" })), /* @__PURE__ */ React.createElement("h3", { className: "font-black text-xl uppercase tracking-tight text-black" }, "End / Close Journey")), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-2 hover:bg-slate-100 rounded-full transition-colors text-black" }, /* @__PURE__ */ React.createElement(X, { size: 24 }))), /* @__PURE__ */ React.createElement("div", { className: "p-5 sm:p-6 space-y-6 overflow-y-auto flex-1" }, error && /* @__PURE__ */ React.createElement("div", { className: "bg-rose-50 border-2 border-black text-rose-800 px-4 py-3 rounded-2xl flex items-start gap-3 text-sm font-bold" }, /* @__PURE__ */ React.createElement("p", null, error)), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-100 p-4 rounded-2xl border-2 border-black space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-xs font-bold uppercase text-slate-700" }, /* @__PURE__ */ React.createElement("span", null, "Vehicle: ", journey.vehicleNumber), /* @__PURE__ */ React.createElement("span", null, "Driver: ", journey.driverName)), /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center text-sm font-black text-black" }, /* @__PURE__ */ React.createElement("span", null, "Start Odometer:"), /* @__PURE__ */ React.createElement("span", { className: "font-mono text-base" }, journey.startOdometer, " KM")), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600 font-bold truncate" }, "Start: ", journey.startLocation)), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] font-bold uppercase tracking-wider text-black ml-1" }, "End Odometer Reading"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      inputMode: "decimal",
+      value: endOdometer,
+      onChange: (e) => setEndOdometer(e.target.value),
+      placeholder: "Enter Ending KM",
+      className: "w-full pl-4 pr-16 py-4 bg-white border-2 border-black rounded-xl outline-none text-xl font-bold font-mono text-black placeholder:text-slate-400"
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-black font-bold" }, "KM")), !isNaN(estimatedTripKm) && estimatedTripKm >= 0 && /* @__PURE__ */ React.createElement("div", { className: "bg-emerald-100 border-2 border-black p-3 rounded-xl flex items-center justify-between font-black mt-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs uppercase text-emerald-900" }, "Calculated Trip Distance:"), /* @__PURE__ */ React.createElement("span", { className: "text-emerald-900 font-mono text-lg" }, estimatedTripKm.toFixed(1), " KM"))), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] font-bold uppercase tracking-wider text-black ml-1" }, "End Odometer Photo (Auto-detect KM)"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-3" }, images.map((img, idx) => /* @__PURE__ */ React.createElement("div", { key: idx, className: "relative w-20 h-20 rounded-xl overflow-hidden border-2 border-black" }, /* @__PURE__ */ React.createElement("img", { src: img, alt: "Odometer End", className: "w-full h-full object-cover" }), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => removeImage(idx),
+      className: "absolute top-1 right-1 p-1 bg-rose-500 text-white rounded-md border border-black"
+    },
+    /* @__PURE__ */ React.createElement(Trash2, { size: 12 })
+  ))), /* @__PURE__ */ React.createElement("label", { className: "w-20 h-20 rounded-xl border-2 border-dashed border-black flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors bg-white text-black" }, isOcrScanning ? /* @__PURE__ */ React.createElement(Loader2, { size: 20, className: "animate-spin text-black" }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Camera, { size: 20 }), /* @__PURE__ */ React.createElement("span", { className: "text-[9px] font-bold uppercase mt-1" }, "Capture")), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "file",
+      accept: "image/*",
+      capture: "environment",
+      onChange: handleImageUpload,
+      className: "hidden"
+    }
+  ))), ocrConfidence !== null && /* @__PURE__ */ React.createElement("p", { className: "text-[10px] font-bold text-emerald-700" }, "Odometer auto-detected via AI OCR (Confidence: ", Math.round(ocrConfidence * 100), "%)"), showLowConfidenceWarning && /* @__PURE__ */ React.createElement("p", { className: "text-[10px] font-bold text-amber-700" }, "Low confidence on auto-read. Please verify the end odometer value.")), /* @__PURE__ */ React.createElement("div", { className: "bg-amber-50 border-2 border-black rounded-2xl p-4 space-y-3" }, /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 cursor-pointer" }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "checkbox",
+      checked: issuePol,
+      onChange: (e) => setIssuePol(e.target.checked),
+      className: "w-5 h-5 accent-black rounded border-2 border-black"
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-black font-black uppercase text-xs" }, /* @__PURE__ */ React.createElement(Fuel, { size: 16 }), /* @__PURE__ */ React.createElement("span", null, "Issue POL (Fuel / Oil / Lubricant)"))), issuePol && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 pt-2" }, /* @__PURE__ */ React.createElement("div", { className: "space-y-1" }, /* @__PURE__ */ React.createElement("label", { className: "text-[10px] font-bold uppercase tracking-wider text-black ml-1" }, "Fuel Liters"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      inputMode: "decimal",
+      value: fuelLiters,
+      onChange: (e) => setFuelLiters(e.target.value),
+      placeholder: "0.0",
+      className: "w-full px-3 py-3 bg-white border-2 border-black rounded-xl outline-none font-bold text-black font-mono"
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "space-y-1" }, /* @__PURE__ */ React.createElement("label", { className: "text-[10px] font-bold uppercase tracking-wider text-black ml-1" }, "Amount (Nu.)"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      inputMode: "decimal",
+      value: fuelAmount,
+      onChange: (e) => setFuelAmount(e.target.value),
+      placeholder: "0.00",
+      className: "w-full px-3 py-3 bg-white border-2 border-black rounded-xl outline-none font-bold text-black font-mono"
+    }
+  )))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] font-bold uppercase tracking-wider text-black ml-1" }, "End Location"), /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      value: endLocation,
+      onChange: (e) => setEndLocation(e.target.value),
+      placeholder: "Capturing end location...",
+      className: "w-full pl-4 pr-12 py-3 bg-white border-2 border-black rounded-xl outline-none min-h-[60px] text-sm resize-none text-black font-bold placeholder:text-slate-400"
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: handleFetchLocation,
+      disabled: isLocating,
+      className: "absolute right-3 top-3 p-2 text-black hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+    },
+    isLocating ? /* @__PURE__ */ React.createElement(Loader2, { size: 18, className: "animate-spin" }) : /* @__PURE__ */ React.createElement(MapPin, { size: 18 })
+  )))), /* @__PURE__ */ React.createElement("div", { className: "p-6 bg-white flex gap-3 border-t-2 border-black" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: onClose,
+      className: "flex-1 py-4 px-4 bg-white border-2 border-black text-black font-black uppercase rounded-xl hover:bg-slate-100 transition-all"
+    },
+    "Cancel"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: handleConfirm,
+      className: "flex-[2] py-4 px-4 bg-black text-white border-2 border-black font-black uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none"
+    },
+    /* @__PURE__ */ React.createElement(CheckCircle2, { size: 20 }),
+    " End Journey & Calculate KM"
+  ))));
+}
+function ExportReportModal({ isOpen, onClose, journeys, records, onExport, isExporting }) {
+  const [preset, setPreset] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const toLocalDateStr = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+  const todayStr = useMemo(() => toLocalDateStr(/* @__PURE__ */ new Date()), []);
+  const getItemDateStr = (itemDate) => {
+    if (!itemDate) return "";
+    const d = new Date(itemDate);
+    if (isNaN(d.getTime())) {
+      if (/^\d{4}-\d{2}-\d{2}/.test(itemDate)) {
+        return itemDate.slice(0, 10);
+      }
+      return "";
+    }
+    return toLocalDateStr(d);
+  };
+  const setDatePreset = (type) => {
+    setPreset(type);
+    const now = /* @__PURE__ */ new Date();
+    if (type === "all") {
+      setStartDate("");
+      setEndDate("");
+    } else if (type === "today") {
+      const today = toLocalDateStr(now);
+      setStartDate(today);
+      setEndDate(today);
+    } else if (type === "yesterday") {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = toLocalDateStr(yesterday);
+      setStartDate(yStr);
+      setEndDate(yStr);
+    } else if (type === "week") {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 6);
+      setStartDate(toLocalDateStr(weekAgo));
+      setEndDate(toLocalDateStr(now));
+    } else if (type === "month") {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      setStartDate(toLocalDateStr(firstDay));
+      setEndDate(toLocalDateStr(now));
+    } else if (type === "custom") {
+      if (!startDate) setStartDate(todayStr);
+      if (!endDate) setEndDate(todayStr);
+    }
+  };
+  const { filteredJourneys, filteredRecords, totalKm, totalFuelLiters } = useMemo(() => {
+    const fJourneys = (journeys || []).filter((j) => {
+      const jDate = getItemDateStr(j.startTime);
+      if (!jDate) return true;
+      if (startDate && jDate < startDate) return false;
+      if (endDate && jDate > endDate) return false;
+      return true;
+    });
+    const fRecords = (records || []).filter((r) => {
+      const rDate = getItemDateStr(r.createdDate || r.date);
+      if (!rDate) return true;
+      if (startDate && rDate < startDate) return false;
+      if (endDate && rDate > endDate) return false;
+      return true;
+    });
+    const km = fJourneys.reduce((acc, j) => acc + (j.distanceKm || 0), 0);
+    const fuel = fJourneys.reduce((acc, j) => acc + (j.fuelLiters || 0), 0) + fRecords.reduce((acc, r) => acc + (r.fuelLiters || 0), 0);
+    return {
+      filteredJourneys: fJourneys,
+      filteredRecords: fRecords,
+      totalKm: km,
+      totalFuelLiters: fuel
+    };
+  }, [journeys, records, startDate, endDate]);
+  if (!isOpen) return null;
+  const totalMatches = filteredJourneys.length + filteredRecords.length;
+  const handleDownload = async () => {
+    await onExport(filteredJourneys, filteredRecords, startDate || void 0, endDate || void 0);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" }, /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      className: "bg-white border-2 border-black rounded-2xl w-full max-w-lg overflow-hidden shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[92vh]",
+      onClick: (e) => e.stopPropagation()
+    },
+    /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 text-white p-5 flex items-center justify-between border-b-2 border-black" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-10 h-10 bg-white text-black rounded-xl flex items-center justify-center font-bold" }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 22 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-black uppercase tracking-tight" }, "Export Excel Report"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-300 font-medium" }, "Select date range for journeys & POL issues"))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: onClose,
+        className: "w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors text-white",
+        title: "Close"
+      },
+      /* @__PURE__ */ React.createElement(X, { size: 18 })
+    )),
+    /* @__PURE__ */ React.createElement("div", { className: "p-6 space-y-5 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-xs font-black uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement(Filter, { size: 14 }), " Quick Date Presets"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 sm:grid-cols-6 gap-1.5" }, [
+      { id: "all", label: "All Time" },
+      { id: "today", label: "Today" },
+      { id: "yesterday", label: "Yesterday" },
+      { id: "week", label: "Last 7D" },
+      { id: "month", label: "This Month" },
+      { id: "custom", label: "Custom" }
+    ].map((p) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: p.id,
+        type: "button",
+        onClick: () => setDatePreset(p.id),
+        className: `py-2 px-1 text-xs font-bold rounded-lg border-2 border-black transition-all text-center ${preset === p.id ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" : "bg-slate-100 hover:bg-slate-200 text-black"}`
+      },
+      p.label
+    )))), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-50 border-2 border-black rounded-xl p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-black uppercase tracking-wider text-black flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement(Calendar, { size: 14 }), " Date Range Selection"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-[11px] font-bold text-slate-600 mb-1" }, "From Date (Start)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "date",
+        value: startDate,
+        onChange: (e) => {
+          setStartDate(e.target.value);
+          setPreset("custom");
+        },
+        className: "w-full px-3 py-2 border-2 border-black rounded-lg text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-black"
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-[11px] font-bold text-slate-600 mb-1" }, "To Date (End)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "date",
+        value: endDate,
+        onChange: (e) => {
+          setEndDate(e.target.value);
+          setPreset("custom");
+        },
+        className: "w-full px-3 py-2 border-2 border-black rounded-lg text-sm font-bold bg-white focus:outline-none focus:ring-2 focus:ring-black"
+      }
+    ))), startDate && endDate && startDate > endDate && /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-300 p-2 rounded-lg" }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 14, className: "shrink-0" }), "From Date cannot be later than To Date.")), /* @__PURE__ */ React.createElement("div", { className: "border-2 border-black rounded-xl p-4 bg-emerald-50 space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-black uppercase tracking-wider text-emerald-950" }, "Matching Data in Range"), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold font-mono bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded" }, startDate && endDate ? `${startDate} to ${endDate}` : startDate ? `From ${startDate}` : endDate ? `Until ${endDate}` : "All Records")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 pt-1" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white border border-emerald-300 rounded-lg p-2.5 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-[10px] font-bold uppercase text-slate-500" }, "Journeys"), /* @__PURE__ */ React.createElement("div", { className: "text-base font-black text-black" }, filteredJourneys.length)), /* @__PURE__ */ React.createElement("div", { className: "bg-white border border-emerald-300 rounded-lg p-2.5 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-[10px] font-bold uppercase text-slate-500" }, "POL Records"), /* @__PURE__ */ React.createElement("div", { className: "text-base font-black text-black" }, filteredRecords.length)), /* @__PURE__ */ React.createElement("div", { className: "bg-white border border-emerald-300 rounded-lg p-2.5 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-[10px] font-bold uppercase text-slate-500" }, "Distance"), /* @__PURE__ */ React.createElement("div", { className: "text-base font-black text-black" }, totalKm.toFixed(1), " ", /* @__PURE__ */ React.createElement("span", { className: "text-xs" }, "KM")))), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] font-medium text-emerald-900 pt-1" }, "\u2713 Includes embedded Start & End odometer photos, device timestamps, and trip durations.")), totalMatches === 0 && /* @__PURE__ */ React.createElement("div", { className: "p-3 bg-amber-50 border-2 border-amber-400 rounded-xl flex items-center gap-2 text-xs font-bold text-amber-900" }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 16, className: "shrink-0 text-amber-600" }), /* @__PURE__ */ React.createElement("span", null, "No journeys or fuel records match this date range. Click ", /* @__PURE__ */ React.createElement("strong", null, "All Time"), " or choose different dates."))),
+    /* @__PURE__ */ React.createElement("div", { className: "p-5 bg-slate-50 border-t-2 border-black flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onClose,
+        className: "px-4 py-2.5 border-2 border-black rounded-xl font-bold text-xs uppercase hover:bg-slate-200 transition-colors"
+      },
+      "Cancel"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: handleDownload,
+        disabled: isExporting || totalMatches === 0 || !!startDate && !!endDate && startDate > endDate,
+        className: "flex-1 py-3 px-4 bg-black text-white font-black text-xs uppercase rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none"
+      },
+      isExporting ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Loader2, { size: 16, className: "animate-spin" }), "Generating Excel Report...") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), "Download Report (", totalMatches, " items)")
+    ))
+  ));
+}
+function App() {
+  const [state, setState] = useState(() => {
+    const saved = localStorage.getItem("km_tracker_state_v2");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          records: (parsed.records || []).filter((r) => r.type === "FUELING"),
+          journeys: parsed.journeys || [],
+          activeJourneyId: parsed.activeJourneyId || null,
+          settings: parsed.settings || { vehicleNumber: "", driverName: "" }
+        };
+      } catch (e) {
+        console.error("Failed to parse state", e);
+      }
+    }
+    return {
+      records: [],
+      journeys: [],
+      activeJourneyId: null,
+      settings: { vehicleNumber: "", driverName: "" }
+    };
+  });
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isJourneyStartOpen, setIsJourneyStartOpen] = useState(false);
+  const [isJourneyEndOpen, setIsJourneyEndOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  useEffect(() => {
+    localStorage.setItem("km_tracker_state_v2", JSON.stringify(state));
+  }, [state]);
+  const handleStartJourney = (journey) => {
+    setState((prev) => {
+      let newRecords = prev.records;
+      if (journey.fuelLiters && journey.fuelAmount) {
+        const fuelRecord = {
+          id: `POL-${Date.now()}`,
+          date: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+          time: (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          kmReading: journey.startOdometer,
+          latitude: journey.startLatitude || 0,
+          longitude: journey.startLongitude || 0,
+          location: journey.startLocation,
+          images: [],
+          type: "FUELING",
+          fuelLiters: journey.fuelLiters,
+          fuelAmount: journey.fuelAmount,
+          purpose: `POL Issued at Start: ${journey.purpose}`,
+          driverName: journey.driverName,
+          vehicleNumber: journey.vehicleNumber,
+          createdDate: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        newRecords = [fuelRecord, ...newRecords];
+      }
+      return {
+        ...prev,
+        records: newRecords,
+        journeys: [journey, ...prev.journeys],
+        activeJourneyId: journey.id
+      };
+    });
+  };
+  const handleEndJourney = (journeyId, endOdometer, endLocation, endLatitude, endLongitude, endImages, fuelLiters, fuelAmount) => {
+    setState((prev) => {
+      let newRecords = prev.records;
+      const targetJourney = prev.journeys.find((j) => j.id === journeyId);
+      if (fuelLiters && fuelAmount && targetJourney) {
+        const fuelRecord = {
+          id: `POL-${Date.now()}`,
+          date: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+          time: (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          kmReading: endOdometer,
+          latitude: endLatitude || 0,
+          longitude: endLongitude || 0,
+          location: endLocation,
+          images: endImages || [],
+          type: "FUELING",
+          fuelLiters,
+          fuelAmount,
+          purpose: `POL Issued at Journey End: ${targetJourney.purpose}`,
+          driverName: targetJourney.driverName,
+          vehicleNumber: targetJourney.vehicleNumber,
+          createdDate: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        newRecords = [fuelRecord, ...newRecords];
+      }
+      const updatedJourneys = prev.journeys.map((j) => {
+        if (j.id === journeyId) {
+          const distance = endOdometer - j.startOdometer;
+          return {
+            ...j,
+            status: "COMPLETED",
+            endOdometer,
+            endLocation,
+            endLatitude,
+            endLongitude,
+            endImages,
+            fuelLiters,
+            fuelAmount,
+            endTime: (/* @__PURE__ */ new Date()).toISOString(),
+            distanceKm: distance >= 0 ? distance : 0
+          };
+        }
+        return j;
+      });
+      return {
+        ...prev,
+        records: newRecords,
+        journeys: updatedJourneys,
+        activeJourneyId: prev.activeJourneyId === journeyId ? null : prev.activeJourneyId
+      };
+    });
+  };
+  const handleSaveSettings = (settings) => {
+    setState((prev) => ({
+      ...prev,
+      settings
+    }));
+  };
+  const activeJourney = state.journeys.find((j) => j.id === state.activeJourneyId);
+  const exportExcel = async (filteredJourneys, filteredRecords, startDate, endDate) => {
+    const jList = filteredJourneys || state.journeys;
+    const rList = filteredRecords || state.records;
+    if (jList.length === 0 && rList.length === 0) {
+      alert("No records or journeys to export for the selected date range.");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      let generatedBlob = null;
+      try {
+        const response = await fetch("/api/export-excel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startDate,
+            endDate,
+            journeys: jList.map((j) => ({
+              ...j,
+              deviceStartTime: j.startTime ? new Date(j.startTime).toLocaleString(void 0, {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
+              }) : "",
+              deviceEndTime: j.endTime ? new Date(j.endTime).toLocaleString(void 0, {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
+              }) : "Active"
+            })),
+            records: rList.map((r) => ({
+              ...r,
+              deviceTime: r.createdDate ? new Date(r.createdDate).toLocaleString(void 0, {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
+              }) : `${r.date} ${r.time}`
+            }))
+          })
+        });
+        if (response.ok) {
+          generatedBlob = await response.blob();
+        }
+      } catch (serverErr) {
+      }
+      if (!generatedBlob) {
+        let formatDuration2 = function(startTime, endTime) {
+          if (!startTime) return "-";
+          if (!endTime || endTime === "Active") return "In Progress";
+          const start = new Date(startTime).getTime();
+          const end = new Date(endTime).getTime();
+          if (isNaN(start) || isNaN(end) || end < start) return "-";
+          const totalSecs = Math.floor((end - start) / 1e3);
+          const hours = Math.floor(totalSecs / 3600);
+          const mins = Math.floor(totalSecs % 3600 / 60);
+          if (hours > 0) return `${hours} hr ${mins} min`;
+          if (mins > 0) return `${mins} min`;
+          return `${totalSecs} sec`;
+        }, cleanImageBase642 = function(dataUrl) {
+          if (!dataUrl || typeof dataUrl !== "string") return null;
+          const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
+          if (match) {
+            const ext = match[1] === "png" ? "png" : "jpeg";
+            return { base64: match[2], extension: ext };
+          }
+          if (dataUrl.length > 100) {
+            return { base64: dataUrl, extension: "jpeg" };
+          }
+          return null;
+        };
+        var formatDuration = formatDuration2, cleanImageBase64 = cleanImageBase642;
+        const ExcelJS = window.ExcelJS;
+        if (!ExcelJS) {
+          throw new Error("ExcelJS library not loaded");
+        }
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = "Fleet Journey & POL Tracker";
+        workbook.created = /* @__PURE__ */ new Date();
+        const worksheet = workbook.addWorksheet("Fleet Report", {
+          views: [{ showGridLines: true }]
+        });
+        worksheet.columns = [
+          { header: "ID", key: "id", width: 18 },
+          { header: "Start Time", key: "startTime", width: 22 },
+          { header: "End Time", key: "endTime", width: 22 },
+          { header: "Duration", key: "duration", width: 16 },
+          { header: "Vehicle Number", key: "vehicleNumber", width: 16 },
+          { header: "Driver Name", key: "driverName", width: 18 },
+          { header: "Start KM", key: "startKm", width: 14 },
+          { header: "End KM", key: "endKm", width: 14 },
+          { header: "Total KM", key: "totalKm", width: 14 },
+          { header: "POL Issue", key: "polIssue", width: 20 },
+          { header: "Mileage (KM/L)", key: "mileage", width: 16 },
+          { header: "Start Photo", key: "startPhoto", width: 22 },
+          { header: "End Photo", key: "endPhoto", width: 22 },
+          { header: "Location", key: "location", width: 36 },
+          { header: "Purpose", key: "purpose", width: 28 }
+        ];
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+        headerRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF0F172A" }
+        };
+        headerRow.alignment = { vertical: "middle", horizontal: "center" };
+        headerRow.height = 32;
+        const fuelEvents = [];
+        jList.forEach((j) => {
+          if (j.fuelLiters && j.fuelLiters > 0) {
+            fuelEvents.push({
+              id: j.id,
+              km: j.endOdometer !== void 0 ? j.endOdometer : j.startOdometer,
+              liters: j.fuelLiters,
+              timestamp: new Date(j.endTime || j.startTime).getTime(),
+              vehicleNumber: j.vehicleNumber || ""
+            });
+          }
+        });
+        rList.filter((r) => r.type === "FUELING" && r.fuelLiters && r.fuelLiters > 0).forEach((r) => {
+          fuelEvents.push({
+            id: r.id,
+            km: r.kmReading,
+            liters: r.fuelLiters || 0,
+            timestamp: (/* @__PURE__ */ new Date(`${r.date} ${r.time}`)).getTime() || Date.now(),
+            vehicleNumber: r.vehicleNumber || ""
+          });
+        });
+        fuelEvents.sort((a, b) => a.km - b.km || a.timestamp - b.timestamp);
+        const lastPolKmByVehicle = {};
+        const mileageMap = {};
+        fuelEvents.forEach((ev) => {
+          const v = (ev.vehicleNumber || "").toUpperCase();
+          if (lastPolKmByVehicle[v] !== void 0) {
+            const prevKm = lastPolKmByVehicle[v];
+            const distance = ev.km - prevKm;
+            if (distance > 0 && ev.liters > 0) {
+              const mil = (distance / ev.liters).toFixed(2);
+              mileageMap[ev.id] = `${mil} KM/L`;
+            } else {
+              mileageMap[ev.id] = "-";
+            }
+          } else {
+            mileageMap[ev.id] = "N/A (First POL)";
+          }
+          lastPolKmByVehicle[v] = ev.km;
+        });
+        let currentRowIdx = 2;
+        for (const j of jList) {
+          const polText = j.fuelLiters ? `${j.fuelLiters} L (Nu. ${j.fuelAmount || 0})` : "";
+          const mileageText = mileageMap[j.id] || "";
+          const startImg = j.images && j.images[0] ? cleanImageBase642(j.images[0]) : null;
+          const endImg = j.endImages && j.endImages[0] ? cleanImageBase642(j.endImages[0]) : null;
+          const hasImage = Boolean(startImg || endImg);
+          const row = worksheet.addRow({
+            id: j.id,
+            startTime: j.startTime ? new Date(j.startTime).toLocaleString(void 0, {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true
+            }) : "",
+            endTime: j.endTime ? new Date(j.endTime).toLocaleString(void 0, {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true
+            }) : "Active",
+            duration: formatDuration2(j.startTime, j.endTime),
+            vehicleNumber: j.vehicleNumber,
+            driverName: j.driverName,
+            startKm: j.startOdometer,
+            endKm: j.endOdometer !== void 0 ? j.endOdometer : "Active",
+            totalKm: j.distanceKm !== void 0 ? j.distanceKm : "",
+            polIssue: polText,
+            mileage: mileageText,
+            startPhoto: startImg ? "" : "-",
+            endPhoto: endImg ? "" : "-",
+            location: j.endLocation || j.startLocation || "",
+            purpose: j.purpose || ""
+          });
+          row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+          row.getCell("location").alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+          row.getCell("purpose").alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+          if (hasImage) {
+            row.height = 70;
+          } else {
+            row.height = 28;
+          }
+          if (startImg) {
+            try {
+              const imageId = workbook.addImage({
+                base64: startImg.base64,
+                extension: startImg.extension
+              });
+              worksheet.addImage(imageId, {
+                tl: { col: 11.1, row: currentRowIdx - 1 + 0.08 },
+                ext: { width: 100, height: 62 }
+              });
+            } catch (e) {
+              row.getCell("startPhoto").value = "Image Error";
+            }
+          }
+          if (endImg) {
+            try {
+              const imageId = workbook.addImage({
+                base64: endImg.base64,
+                extension: endImg.extension
+              });
+              worksheet.addImage(imageId, {
+                tl: { col: 12.1, row: currentRowIdx - 1 + 0.08 },
+                ext: { width: 100, height: 62 }
+              });
+            } catch (e) {
+              row.getCell("endPhoto").value = "Image Error";
+            }
+          }
+          currentRowIdx++;
+        }
+        for (const r of rList.filter((rec) => rec.type === "FUELING")) {
+          const polText = r.fuelLiters ? `${r.fuelLiters} L (Nu. ${r.fuelAmount || 0})` : "";
+          const mileageText = mileageMap[r.id] || "";
+          const recordImg = r.images && r.images[0] ? cleanImageBase642(r.images[0]) : null;
+          const row = worksheet.addRow({
+            id: r.id,
+            startTime: r.createdDate ? new Date(r.createdDate).toLocaleString(void 0, {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true
+            }) : `${r.date} ${r.time}`,
+            endTime: "-",
+            duration: "-",
+            vehicleNumber: r.vehicleNumber,
+            driverName: r.driverName,
+            startKm: r.kmReading,
+            endKm: "",
+            totalKm: "",
+            polIssue: polText,
+            mileage: mileageText,
+            startPhoto: recordImg ? "" : "-",
+            endPhoto: "-",
+            location: r.location || "",
+            purpose: r.purpose || ""
+          });
+          row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+          row.getCell("location").alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+          row.getCell("purpose").alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+          if (recordImg) {
+            row.height = 70;
+            try {
+              const imageId = workbook.addImage({
+                base64: recordImg.base64,
+                extension: recordImg.extension
+              });
+              worksheet.addImage(imageId, {
+                tl: { col: 11.1, row: currentRowIdx - 1 + 0.08 },
+                ext: { width: 100, height: 62 }
+              });
+            } catch (e) {
+              row.getCell("startPhoto").value = "Image Error";
+            }
+          } else {
+            row.height = 28;
+          }
+          currentRowIdx++;
+        }
+        worksheet.eachRow((r, rowNumber) => {
+          if (rowNumber > 1) {
+            r.eachCell((cell) => {
+              cell.border = {
+                top: { style: "thin", color: { argb: "FFE2E8F0" } },
+                left: { style: "thin", color: { argb: "FFE2E8F0" } },
+                bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+                right: { style: "thin", color: { argb: "FFE2E8F0" } }
+              };
+            });
+          }
+        });
+        const buffer = await workbook.xlsx.writeBuffer();
+        generatedBlob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      }
+      const url = window.URL.createObjectURL(generatedBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      const downloadFilename = startDate && endDate ? `fleet_report_${startDate}_to_${endDate}.xlsx` : startDate ? `fleet_report_from_${startDate}.xlsx` : `fleet_report_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.xlsx`;
+      link.setAttribute("download", downloadFilename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setIsExportModalOpen(false);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert("Failed to generate Excel report. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  const handleDownloadHtml = () => {
+    const currentHtml = document.documentElement.outerHTML;
+    const blob = new Blob(["<!DOCTYPE html>\n" + currentHtml], { type: "text/html;charset=utf-8" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "fleet_journey_tracker.html";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen bg-white text-black font-sans selection:bg-emerald-100 selection:text-emerald-900 pb-10" }, /* @__PURE__ */ React.createElement("header", { className: "border-b-2 border-black bg-white px-6 py-5 sticky top-0 z-40" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between max-w-2xl mx-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center" }, /* @__PURE__ */ React.createElement(Car, { size: 24 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-xl font-black uppercase tracking-tighter" }, "Journey & POL Tracker"), /* @__PURE__ */ React.createElement("p", { className: "text-[10px] font-bold text-slate-500 uppercase tracking-widest" }, "Fleet & Fuel Odometer Tracker"))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: handleDownloadHtml,
+      className: "p-2 border-2 border-black rounded-lg hover:bg-slate-100 transition-colors bg-white text-black",
+      title: "Download Standalone HTML File (.html)"
+    },
+    /* @__PURE__ */ React.createElement(DownloadIcon, { size: 20 })
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setIsExportModalOpen(true),
+      className: "p-2 border-2 border-black rounded-lg hover:bg-slate-100 transition-colors bg-white text-black",
+      title: "Export Excel Report with Date Range (.xlsx)"
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 20 })
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setIsSettingsModalOpen(true),
+      className: "p-2 border-2 border-black rounded-lg hover:bg-slate-100 transition-colors bg-white text-black",
+      title: "Settings"
+    },
+    /* @__PURE__ */ React.createElement(SettingsIcon, { size: 20 })
+  )))), /* @__PURE__ */ React.createElement("main", { className: "px-3 sm:px-5 py-4 sm:py-6 max-w-2xl mx-auto space-y-6" }, activeJourney && /* @__PURE__ */ React.createElement("div", { className: "bg-emerald-100 border-2 border-black rounded-2xl p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] space-y-3 animate-in fade-in duration-200" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "w-3 h-3 rounded-full bg-emerald-600 animate-pulse" }), /* @__PURE__ */ React.createElement("span", { className: "font-black text-xs uppercase tracking-wider text-emerald-900" }, "Active Journey in Progress")), /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold text-xs bg-black text-white px-2 py-0.5 rounded" }, activeJourney.vehicleNumber)), /* @__PURE__ */ React.createElement("div", { className: "text-sm font-black text-black" }, activeJourney.purpose, " ", /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold text-slate-700" }, "(", activeJourney.driverName, ")")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-xs font-bold text-slate-700" }, /* @__PURE__ */ React.createElement(MapPin, { size: 14, className: "shrink-0" }), /* @__PURE__ */ React.createElement("span", { className: "truncate" }, "Start: ", activeJourney.startLocation)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between pt-1" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-700" }, "Odometer Start: ", /* @__PURE__ */ React.createElement("span", { className: "font-mono font-black" }, activeJourney.startOdometer, " KM")), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setIsJourneyEndOpen(true),
+      className: "px-4 py-2 bg-black text-white font-black text-xs uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none"
+    },
+    /* @__PURE__ */ React.createElement(Square, { size: 14, className: "fill-white" }),
+    " End / Close Journey"
+  ))), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setIsJourneyStartOpen(true),
+      disabled: !!activeJourney,
+      className: "w-full flex items-center justify-center gap-2 p-5 border-2 border-black rounded-2xl bg-emerald-400 hover:bg-emerald-500 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed font-black text-sm uppercase text-black"
+    },
+    /* @__PURE__ */ React.createElement(Play, { size: 20, className: "fill-black" }),
+    /* @__PURE__ */ React.createElement("span", null, "Start Journey")
+  )), /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, state.journeys.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between border-b-2 border-black pb-2" }, /* @__PURE__ */ React.createElement("h3", { className: "text-sm font-black uppercase text-black" }, "Journey / Trip Logs"), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-bold text-slate-700" }, state.journeys.length, " journeys")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, state.journeys.map((journey) => /* @__PURE__ */ React.createElement("div", { key: journey.id, className: "border-2 border-black p-4 rounded-xl flex items-center gap-4 bg-white hover:bg-slate-50 transition-colors" }, /* @__PURE__ */ React.createElement("div", { className: `w-12 h-12 border border-black rounded-lg flex items-center justify-center shrink-0 ${journey.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-800"}` }, /* @__PURE__ */ React.createElement(Navigation, { size: 22 })), /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-0.5" }, /* @__PURE__ */ React.createElement("p", { className: "font-black text-sm text-black" }, journey.purpose, " \u2022 ", journey.vehicleNumber), journey.distanceKm !== void 0 ? /* @__PURE__ */ React.createElement("span", { className: "font-mono font-black text-sm bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded border border-black" }, journey.distanceKm, " KM Trip") : /* @__PURE__ */ React.createElement("span", { className: "font-mono font-black text-xs bg-amber-200 text-amber-900 px-2 py-0.5 rounded border border-black" }, "ACTIVE")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-slate-800 font-bold text-[10px] uppercase" }, /* @__PURE__ */ React.createElement(Clock, { size: 10 }), /* @__PURE__ */ React.createElement("span", null, new Date(journey.startTime).toLocaleDateString()), /* @__PURE__ */ React.createElement("span", { className: "mx-1" }, "|"), /* @__PURE__ */ React.createElement("span", null, "Driver: ", journey.driverName), journey.distanceKm !== void 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "mx-1" }, "|"), /* @__PURE__ */ React.createElement("span", null, journey.startOdometer, " \u2192 ", journey.endOdometer, " KM"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-slate-700 font-bold text-[10px] mt-1" }, /* @__PURE__ */ React.createElement(MapPin, { size: 10, className: "shrink-0" }), /* @__PURE__ */ React.createElement("span", { className: "truncate" }, "Start: ", journey.startLocation)), journey.endLocation && /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-slate-700 font-bold text-[10px] mt-0.5" }, /* @__PURE__ */ React.createElement(MapPin, { size: 10, className: "shrink-0" }), /* @__PURE__ */ React.createElement("span", { className: "truncate" }, "End: ", journey.endLocation)), journey.fuelLiters !== void 0 && journey.fuelAmount !== void 0 && /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-amber-900 font-bold text-[10px] mt-1 bg-amber-50 px-2 py-0.5 rounded border border-black/20 w-fit" }, /* @__PURE__ */ React.createElement(Fuel, { size: 10, className: "shrink-0" }), /* @__PURE__ */ React.createElement("span", null, "POL Issued: ", journey.fuelLiters, " L (Nu. ", journey.fuelAmount, ")")), journey.images?.length || journey.endImages?.length ? /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mt-1.5 pt-1.5 border-t border-slate-100" }, journey.images?.[0] && /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1 bg-slate-50 border border-black/20 rounded p-1" }, /* @__PURE__ */ React.createElement("img", { src: journey.images[0], alt: "Start Photo", className: "w-6 h-6 rounded object-cover border border-black/40" }), /* @__PURE__ */ React.createElement("span", { className: "text-[9px] font-bold text-slate-700" }, "Start Photo")), journey.endImages?.[0] && /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1 bg-slate-50 border border-black/20 rounded p-1" }, /* @__PURE__ */ React.createElement("img", { src: journey.endImages[0], alt: "End Photo", className: "w-6 h-6 rounded object-cover border border-black/40" }), /* @__PURE__ */ React.createElement("span", { className: "text-[9px] font-bold text-slate-700" }, "End Photo"))) : null), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1" }, journey.status === "ACTIVE" && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setIsJourneyEndOpen(true),
+      className: "px-2.5 py-1.5 bg-black text-white font-black text-[10px] uppercase rounded-lg hover:bg-slate-800 transition-all"
+    },
+    "End"
+  )))))), /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between border-b-2 border-black pb-2" }, /* @__PURE__ */ React.createElement("h3", { className: "text-sm font-black uppercase text-black" }, "Recent POL (Fuel) Logs"), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-bold text-slate-700" }, state.records.length, " records")), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, state.records.map((record) => /* @__PURE__ */ React.createElement("div", { key: record.id, className: "border-2 border-black p-4 rounded-xl flex items-center gap-4 bg-white hover:bg-slate-50 transition-colors" }, /* @__PURE__ */ React.createElement("div", { className: "w-12 h-12 border border-black rounded-lg flex items-center justify-center shrink-0 bg-amber-100 text-amber-900" }, /* @__PURE__ */ React.createElement(Fuel, { size: 20 })), /* @__PURE__ */ React.createElement("div", { className: "flex-1 min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-0.5" }, /* @__PURE__ */ React.createElement("p", { className: "font-black text-sm text-black" }, "POL - ", record.vehicleNumber, " (", record.driverName, ")"), /* @__PURE__ */ React.createElement("span", { className: "font-mono font-black text-sm text-black" }, record.kmReading, " KM")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-slate-800 font-bold text-[10px] uppercase" }, /* @__PURE__ */ React.createElement(Clock, { size: 10 }), /* @__PURE__ */ React.createElement("span", null, record.date, " \u2022 ", record.time), record.fuelLiters && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "mx-1" }, "|"), /* @__PURE__ */ React.createElement("span", null, record.fuelLiters, "L (Nu. ", record.fuelAmount, ")")), /* @__PURE__ */ React.createElement("span", { className: "mx-1" }, "|"), /* @__PURE__ */ React.createElement(MapPin, { size: 10 }), /* @__PURE__ */ React.createElement("span", { className: "truncate" }, record.location)), record.purpose && /* @__PURE__ */ React.createElement("p", { className: "text-xs font-bold text-slate-700 mt-1 truncate" }, "Purpose: ", record.purpose)))), state.records.length === 0 && state.journeys.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center py-12 border-2 border-dashed border-slate-300 rounded-2xl bg-white" }, /* @__PURE__ */ React.createElement(History, { size: 32, className: "mx-auto text-slate-400 mb-2" }), /* @__PURE__ */ React.createElement("p", { className: "text-slate-600 font-bold text-xs uppercase" }, "No journeys or POL logs recorded yet.")))))), /* @__PURE__ */ React.createElement(
+    SettingsModal,
+    {
+      isOpen: isSettingsModalOpen,
+      onClose: () => setIsSettingsModalOpen(false),
+      settings: state.settings,
+      onSave: handleSaveSettings,
+      onDownloadHtml: handleDownloadHtml
+    }
+  ), /* @__PURE__ */ React.createElement(
+    JourneyStartModal,
+    {
+      isOpen: isJourneyStartOpen,
+      onClose: () => setIsJourneyStartOpen(false),
+      onStartJourney: handleStartJourney,
+      defaultVehicleNumber: state.settings.vehicleNumber,
+      defaultDriverName: state.settings.driverName,
+      defaultStartOdometer: (() => {
+        const completed = state.journeys.filter((j) => j.status === "COMPLETED" && j.endOdometer !== void 0);
+        if (completed.length > 0) {
+          completed.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+          return completed[0].endOdometer;
+        }
+        if (state.records.length > 0) {
+          return state.records[0].kmReading;
+        }
+        return void 0;
+      })()
+    }
+  ), /* @__PURE__ */ React.createElement(
+    JourneyEndModal,
+    {
+      isOpen: isJourneyEndOpen,
+      onClose: () => setIsJourneyEndOpen(false),
+      journey: activeJourney || state.journeys.find((j) => j.status === "ACTIVE") || null,
+      onEndJourney: handleEndJourney
+    }
+  ), /* @__PURE__ */ React.createElement(
+    ExportReportModal,
+    {
+      isOpen: isExportModalOpen,
+      onClose: () => setIsExportModalOpen(false),
+      journeys: state.journeys,
+      records: state.records,
+      onExport: exportExcel,
+      isExporting
+    }
+  ));
+}
+const rootElement = document.getElementById("root");
+const root = ReactDOM.createRoot(rootElement);
+root.render(/* @__PURE__ */ React.createElement(App, null));
+
+  </script>
+</body>
+</html>
